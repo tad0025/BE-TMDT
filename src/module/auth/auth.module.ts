@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prettier/prettier */
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
@@ -9,20 +9,11 @@ import { JwtStrategy } from '../../core/security/jwt/jwt.strategy';
 import { ConfigService } from '@nestjs/config';
 import { ENV_VARS } from 'src/constants/env.constants';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity';
-import { EmailModule } from '../email/email.module';
-import { UsersModule } from '../users/users.module';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { UserToken } from './entities/user-token.entity';
-import { AdminAuthService } from './admin-auth.service';
-import { AdminAuthController } from './admin-auth.controller';
+import { User } from './entities/users.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserToken]), 
-    EmailModule,
-    NotificationsModule,
-    forwardRef(() => UsersModule),
+    TypeOrmModule.forFeature([User, User]), 
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -34,8 +25,8 @@ import { AdminAuthController } from './admin-auth.controller';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, AdminAuthService],
-  controllers: [AuthController, AdminAuthController],
-  exports: [AuthService, JwtModule, AdminAuthService],
+  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

@@ -2,8 +2,7 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Transform } from 'class-transformer';
-import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { EUserGender } from 'src/module/users/enums/user.enum';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Email không hợp lệ' })
@@ -31,10 +30,10 @@ export class AddProfileDto {
   @IsString()
   phone: string;
 
-  @IsNotEmpty({ message: 'Vui lòng chọn giới tính' })
-  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
-  @IsEnum(EUserGender, { message: 'Giới tính không hợp lệ' })
-  gender: EUserGender;
+  // @IsNotEmpty({ message: 'Vui lòng chọn giới tính' })
+  // @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  // @IsEnum(EUserGender, { message: 'Giới tính không hợp lệ' })
+  // gender: EUserGender;
 
   @IsNotEmpty({ message: 'Vui lòng nhập ngày sinh' })
   @IsString()
