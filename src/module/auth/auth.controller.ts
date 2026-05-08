@@ -14,10 +14,17 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from 'src/core/security/jwt/jwt-auth.guard';
 import { SendOtpDto } from './dto/otp.dto';
+import { ConfigService } from '@nestjs/config';
+import { ENV_VARS } from 'src/constants/env.constants';
+import ms from 'ms';
+import type { StringValue } from 'ms';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) { }
 
   @Post('login') // POST /auth/login 
   @HttpCode(HttpStatus.OK)
@@ -28,11 +35,12 @@ export class AuthController {
     const result = await this.authService.login(loginDto);
 
     if (result.success && result.data?.accessToken) {
+      const expiresStr = this.configService.get<StringValue>(ENV_VARS.JWT_ACCESS_EXPIRES_IN) || '7d';
       res.cookie('accessToken', result.data.accessToken, {
         httpOnly: true, // Chống XSS (JavaScript không đọc được)
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict', // Chống CSRF
-        maxAge: 60 * 60 * 1000, // 1 giờ
+        maxAge: ms(expiresStr),
       });
     }
 
