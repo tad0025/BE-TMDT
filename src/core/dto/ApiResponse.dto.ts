@@ -2,6 +2,12 @@ export class ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+  pagination?: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
 
   constructor(success: boolean, message?: string, data?: T) {
     this.success = success;

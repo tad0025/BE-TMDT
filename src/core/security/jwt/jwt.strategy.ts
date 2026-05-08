@@ -1,29 +1,32 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/require-await */
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ENV_VARS } from 'src/constants/env.constants';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from '../../../module/users/entities/user.entity';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectRepository(User) private userRepository: Repository<User>,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
       secretOrKey: configService.get<string>(ENV_VARS.JWT_ACCESS_SECRET) as string,
     });
   }
 
   async validate(payload: any) {
-    return {
-      userId: payload.userId,
-      email: payload.email,
-      role: payload.role,
-    };
+    const user = await this.userRepository.findOne({ where: { id: payload.userId } });
+    
+    // Nếu không tìm thấy user hoặc version trong token không khớp với DB -> Token hết hạn/Logout
+    if (!user || user.tokenVersion !== payload.version) {
+      throw new UnauthorizedException('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+    }
+
+    return user;
   }
 }

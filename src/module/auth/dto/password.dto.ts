@@ -17,5 +17,5 @@ export class ResetPasswordDto {
 
   @IsNotEmpty({ message: 'Vui lòng nhập mật khẩu mới' })
   @IsString()
-  newPassword: string;
+  confirmPassword: string;
 }
