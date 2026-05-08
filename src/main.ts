@@ -4,9 +4,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './core/common/filters/http-exception.filter';
 import { LoggingInterceptor } from './core/common/interceptors/logging.interceptor';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  app.use(cookieParser());
 
   app.set('trust proxy', 'loopback');
 

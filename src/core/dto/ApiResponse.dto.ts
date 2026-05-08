@@ -3,7 +3,7 @@ export class ApiResponse<T> {
   message?: string;
   data?: T;
   pagination?: {
-    currentPage: number;
+    page: number;
     pageSize: number;
     totalItems: number;
     totalPages: number;

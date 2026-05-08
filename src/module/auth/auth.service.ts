@@ -10,18 +10,22 @@ import { LoginDto } from './dto/login.dto';
 import { SendOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { EUserRole } from '../users/enums/user.enum';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class AuthService {
+  private otps = new Map<string, { otp: string; expiresAt: number }>();
+
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User) private userRepository: Repository<User>,
+    private readonly mailerService: MailerService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<ApiResponse<any>> {
-    const { email, password, role } = loginDto;
+    const { email, password } = loginDto;
     const user = await this.userRepository.findOne({ 
-      where: { email, role }, 
+      where: { email }, 
       select: ['id', 'email', 'password', 'role', 'fullName', 'avatarUrl', 'tokenVersion'] 
     });
 
@@ -55,6 +59,19 @@ export class AuthService {
       throw new CustomException(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Mật khẩu xác nhận không khớp');
     }
     
+    const record = this.otps.get(email);
+    if (!record) {
+      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_NOT_FOUND', 'Mã OTP không tồn tại hoặc chưa được gửi');
+    }
+    if (Date.now() > record.expiresAt) {
+      this.otps.delete(email);
+      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED', 'Mã OTP đã hết hạn');
+    }
+    if (record.otp !== otp) {
+      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_INVALID', 'Mã OTP không chính xác');
+    }
+    this.otps.delete(email);
+
     const existingUser = await this.userRepository.findOne({ where: { email } });
     if (existingUser) {
       throw new CustomException(HttpStatus.BAD_REQUEST, 'USER_EXISTS', 'Email đã được sử dụng');
@@ -91,7 +108,24 @@ export class AuthService {
   }
 
   async sendOtp(dto: SendOtpDto): Promise<ApiResponse<null>> {
-    // Logic gửi mail...
+    const { email } = dto;
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    this.otps.set(email, { otp: generatedOtp, expiresAt });
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Mã xác thực OTP',
+        text: `Mã OTP của bạn là: ${generatedOtp}. Mã này có hiệu lực trong 5 phút.`,
+        html: `<p>Mã OTP của bạn là: <strong>${generatedOtp}</strong></p><p>Mã này có hiệu lực trong 5 phút.</p>`,
+      });
+    } catch (error) {
+      console.error('Mail send error:', error);
+      throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR, 'MAIL_FAILED', 'Không thể gửi email OTP, vui lòng thử lại sau.');
+    }
+
     return new ApiResponse(true, 'Gửi OTP thành công', null);
   }
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './module/auth/auth.module';
+import { ProductsModule } from './module/products/products.module';
 import { CustomThrottlerGuard } from './core/security/throttler/custom-throttler.guard';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -37,6 +38,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
 
     AuthModule,
+    ProductsModule,
   ],
   controllers: [],
   providers: [

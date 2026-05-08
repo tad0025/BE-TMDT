@@ -8,11 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { ENV_VARS } from 'src/constants/env.constants';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
+import { MailModule } from '../mails/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]), 
     PassportModule,
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
