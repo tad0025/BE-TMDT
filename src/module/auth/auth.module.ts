@@ -12,7 +12,7 @@ import { MailModule } from '../mails/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]), 
+    TypeOrmModule.forFeature([User]),
     PassportModule,
     MailModule,
     JwtModule.registerAsync({
@@ -29,4 +29,4 @@ import { MailModule } from '../mails/mail.module';
   controllers: [AuthController],
   exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }
