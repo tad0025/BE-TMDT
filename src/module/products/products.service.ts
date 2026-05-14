@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { ApiResponse } from '../../core/dto/ApiResponse.dto';
 import { EFilterState } from './enums/EFilterState.enum';
 import { FindOptionsWhere, FindOptionsOrder, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
+import { CustomException } from '../../core/exceptions/custom.exception';
+import { Favorite } from './entities/favorite.entity';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
+    @InjectRepository(Favorite)
+    private readonly favoriteRepository: Repository<Favorite>,
   ) { }
 
   async getAllProducts(page: number, pageSize: number, sortBy: EFilterState, categories: string[], minPrice: string, maxPrice: string): Promise<ApiResponse<any>> {
@@ -39,7 +43,7 @@ export class ProductsService {
         order.price = 'DESC';
         break;
       case EFilterState.POPULARITY:
-        order.rating = 'DESC'; // Dùng tạm rating cho POPULARITY
+        order.rating = 'DESC';
         break;
       case EFilterState.NEWEST:
       default:
@@ -77,5 +81,61 @@ export class ProductsService {
         totalPages,
       },
     };
+  }
+
+  // Cần inject thêm Favorite Repository vào constructor nếu chưa có
+  async getProductById(id: string, userId?: string) {
+    const product = await this.productsRepository.findOne({
+      where: { id },
+      relations: ['category', 'seller'],
+    });
+
+    if (!product) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Sản phẩm không tồn tại');
+    }
+
+    let isFavorite = false;
+    if (userId) {
+      const favorite = await this.favoriteRepository.findOne({
+        where: { user: { id: userId }, product: { id } },
+      });
+      isFavorite = !!favorite;
+    }
+
+    return {
+      ...product,
+      categoryName: product.category?.name || 'Chưa phân loại',
+      categoryId: product.category?.id,
+      isFavorite,
+      sellerInfo: {
+        id: product.seller?.id,
+        name: product.seller?.fullName,
+        avatarUrl: product.seller?.avatarUrl,
+        // Có thể bổ sung đếm totalProducts hoặc averageRating tại đây
+      },
+    };
+  }
+
+  async toggleFavorite(productId: string, userId: string): Promise<string> {
+    const product = await this.productsRepository.findOne({ where: { id: productId } });
+    if (!product) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Sản phẩm không tồn tại');
+    }
+
+    const favorite = await this.favoriteRepository.findOne({
+      where: { user: { id: userId }, product: { id: productId } },
+    });
+
+    if (favorite) {
+      await this.favoriteRepository.remove(favorite);
+      return 'Đã xóa khỏi bộ sưu tập yêu thích';
+    } else {
+      const newFav = this.favoriteRepository.create({
+        user: { id: userId },
+        product: { id: productId },
+      });
+      await this.favoriteRepository.save(newFav);
+      return 'Đã thêm vào bộ sưu tập yêu thích';
+    }
   }
 }

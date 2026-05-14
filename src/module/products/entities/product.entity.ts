@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('products')
 export class Product {
@@ -12,25 +13,48 @@ export class Product {
   @Column({ nullable: true })
   imageUrl: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('simple-array', { nullable: true })
+  images: string[];
+
+  @Column({ type: 'longtext' })
+  description: string;
+
+  @Column('bigint')
   price: number;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('bigint', { nullable: true })
   originalPrice: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ default: 0 })
   discountPercentage: number;
+
+  @Column({ default: 0 })
+  stock: number;
+
+  @Column({ default: 0 })
+  soldCount: number;
+
+  @Column('simple-array', { nullable: true })
+  materials: string[];
+
+  @Column({ nullable: true })
+  dimensions: string;
+
+  @Column({ nullable: true })
+  weight: string;
+
+  @Column({ nullable: true })
+  careInstructions: string;
 
   @Column('float', { default: 0 })
   rating: number;
 
-  @ManyToOne(() => Category, (category) => category.products, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'categoryId' })
-  category: Category;
-
   @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @ManyToOne(() => Category, (category) => category.products, { onDelete: 'SET NULL' })
+  category: Category;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  seller: User;
 }
