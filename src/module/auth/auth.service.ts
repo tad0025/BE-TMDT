@@ -168,7 +168,7 @@ export class AuthService {
     return new ApiResponse(true, 'Xác thực OTP hợp lệ', null);
   }
 
-  async resetPassword(dto: ResetPasswordDto): Promise<ApiResponse<null>> {
+  async forgotPassword(dto: ResetPasswordDto): Promise<ApiResponse<null>> {
     const { email, otp, confirmPassword } = dto;
     const record = this.otps.get(email);
     if (!record || record.otp !== otp || record.purpose !== OtpPurpose.FORGOT_PASSWORD || Date.now() > record.expiresAt) {

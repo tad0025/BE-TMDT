@@ -59,16 +59,10 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  @Post('verify-otp') // POST /auth/verify-otp
-  @HttpCode(HttpStatus.OK)
-  async verifyOtp(@Body() dto: ResetPasswordDto) {
-    return this.authService.verifyOtp(dto);
-  }
-
   @Post('forgot-password') // POST /auth/forgot-password
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
+  async forgotPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)
