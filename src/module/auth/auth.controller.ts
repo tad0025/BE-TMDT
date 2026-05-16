@@ -12,6 +12,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/password.dto';
 import { JwtAuthGuard } from 'src/core/security/jwt/jwt-auth.guard';
 import { SendOtpDto } from './dto/otp.dto';
 import { ConfigService } from '@nestjs/config';
@@ -47,7 +48,7 @@ export class AuthController {
     return result;
   }
 
-  @Post('otp') // POST /auth/otp 
+  @Post('send-otp') // POST /auth/send-otp 
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
@@ -56,6 +57,12 @@ export class AuthController {
   @Post('register') // POST /auth/register 
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Post('forgot-password') // POST /auth/forgot-password
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.forgotPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)
