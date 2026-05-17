@@ -119,19 +119,19 @@ export class AuthService {
 
     this.otps.set(email, { otp: generatedOtp, expiresAt, purpose: dto.purpose });
 
-    try {
-      if (dto.purpose === OtpPurpose.REGISTER) {
-        const existingUser = await this.userRepository.findOne({ where: { email } });
-        if (existingUser) {
-          throw new CustomException(HttpStatus.BAD_REQUEST, 'USER_EXISTS', 'Email đã được sử dụng');
-        }
-      } else if (dto.purpose === OtpPurpose.FORGOT_PASSWORD) {
-        const existingUser = await this.userRepository.findOne({ where: { email } });
-        if (!existingUser) {
-          throw new CustomException(HttpStatus.BAD_REQUEST, 'USER_NOT_FOUND', 'Email không tồn tại');
-        }
+    if (dto.purpose === OtpPurpose.REGISTER) {
+      const existingUser = await this.userRepository.findOne({ where: { email } });
+      if (existingUser) {
+        return new ApiResponse(false, 'Email đã được sử dụng', null);
       }
+    } else if (dto.purpose === OtpPurpose.FORGOT_PASSWORD) {
+      const existingUser = await this.userRepository.findOne({ where: { email } });
+      if (!existingUser) {
+        return new ApiResponse(false, 'Email không tồn tại', null);
+      }
+    }
 
+    try {
       const subject = dto.purpose === OtpPurpose.REGISTER ? 'Mã OTP đăng ký' : 'Mã OTP quên mật khẩu';
       const text = dto.purpose === OtpPurpose.REGISTER ? `Mã OTP của bạn là: ${generatedOtp}. Mã này có hiệu lực trong 5 phút.` : `Mã OTP của bạn là: ${generatedOtp}. Mã này có hiệu lực trong 5 phút.`;
       const html = dto.purpose === OtpPurpose.REGISTER ? `<p>Mã OTP của bạn là: <strong>${generatedOtp}</strong></p><p>Mã này có hiệu lực trong 5 phút.</p>` : `<p>Mã OTP của bạn là: <strong>${generatedOtp}</strong></p><p>Mã này có hiệu lực trong 5 phút.</p>`;
@@ -143,7 +143,7 @@ export class AuthService {
       });
     } catch (error) {
       console.error('Mail send error:', error);
-      throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR, 'MAIL_FAILED', 'Không thể gửi email OTP, vui lòng thử lại sau.');
+      return new ApiResponse(false, 'Không thể gửi email OTP, vui lòng thử lại sau.', null);
     }
 
     return new ApiResponse(true, 'Gửi OTP thành công', null);
@@ -153,17 +153,17 @@ export class AuthService {
     const { email, otp } = dto;
     const record = this.otps.get(email);
     if (!record) {
-      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_NOT_FOUND', 'Mã OTP không tồn tại hoặc chưa được gửi');
+      return new ApiResponse(false, 'Mã OTP không tồn tại hoặc chưa được gửi', null);
     }
     if (Date.now() > record.expiresAt) {
       this.otps.delete(email);
-      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED', 'Mã OTP đã hết hạn');
+      return new ApiResponse(false, 'Mã OTP đã hết hạn', null);
     }
     if (record.otp !== otp) {
-      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_INVALID', 'Mã OTP không chính xác');
+      return new ApiResponse(false, 'Mã OTP không chính xác', null);
     }
     if (record.purpose !== OtpPurpose.FORGOT_PASSWORD) {
-      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_INVALID_PURPOSE', 'Mã OTP không hợp lệ cho thao tác lấy lại mật khẩu');
+      return new ApiResponse(false, 'Mã OTP không hợp lệ cho thao tác lấy lại mật khẩu', null);
     }
     return new ApiResponse(true, 'Xác thực OTP hợp lệ', null);
   }
@@ -172,7 +172,7 @@ export class AuthService {
     const { email, otp, confirmPassword } = dto;
     const record = this.otps.get(email);
     if (!record || record.otp !== otp || record.purpose !== OtpPurpose.FORGOT_PASSWORD || Date.now() > record.expiresAt) {
-      throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_INVALID', 'Mã OTP không hợp lệ hoặc đã hết hạn');
+      return new ApiResponse(false, 'Mã OTP không hợp lệ hoặc đã hết hạn', null);
     }
 
     this.otps.delete(email);
