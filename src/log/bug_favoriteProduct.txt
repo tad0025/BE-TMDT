@@ -1,0 +1,3 @@
+API GET /products/:id
+    - Ở fe toggle favorite product + F5 kiểu gì thì response BE trả về cũng là "isFavorite": false,
+        nên nút trái tim ở fe lúc nào cũng không được tô màu đỏ mặc dù đã có trong bảng favorites trong database
