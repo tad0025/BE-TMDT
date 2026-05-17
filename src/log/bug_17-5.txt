@@ -1,7 +1,0 @@
-*Đăng ký
-    - khi bấm gửi OTP mà nhập email đã tồn tại:
-        + trang web báo lỗi "Request failed with status code 500"
-        + Status Code "500 Internal Server Error"
-        + terminal backend báo: error: { code: 'USER_EXISTS', message: 'Email đã được sử dụng' }   
-        + 
-
