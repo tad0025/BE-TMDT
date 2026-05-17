@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany } from 'typeorm';
 import { EUserRole } from '../../users/enums/user.enum';
+import { Favorite } from '../../products/entities/favorite.entity';
 
 @Entity('users')
 export class User {

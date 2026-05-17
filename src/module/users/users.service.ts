@@ -6,13 +6,15 @@ import { CustomException } from "src/core/exceptions/custom.exception";
 import { ApiResponse } from "src/core/dto/ApiResponse.dto";
 import { UpdateProfileRequest } from "./dto/users.dto";
 import { WishlistResponse } from "./dto/wishlist.dto";
-
+import { Favorite } from "../products/entities/favorite.entity";
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        @InjectRepository(Favorite)
+        private favoriteRepository: Repository<Favorite>,
     ) { }
 
     async me(userId: string): Promise<ApiResponse<User>> {
@@ -38,11 +40,41 @@ export class UsersService {
         return new ApiResponse(true, 'Cập nhật thông tin thành công', null);
     }
 
-    // async getWishlist(userId: string, page: number, pageSize: number): Promise<ApiResponse<WishlistResponse>> {
-    //     const user = await this.userRepository.findOne({ where: { id: userId } });
-    //     if (!user) {
-    //         throw new CustomException(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'Người dùng không tồn tại');
-    //     }
-    //     return new ApiResponse(true, 'Lấy danh sách yêu thích thành công', user.wishlist);
-    // }
+    async getWishlist(userId: string, page: number, pageSize: number): Promise<ApiResponse<WishlistResponse>> {
+        const pageNumber = page ? parseInt(page.toString(), 10) : 1;
+        const sizeNumber = pageSize ? parseInt(pageSize.toString(), 10) : 10;
+        const skip = (pageNumber - 1) * sizeNumber;
+
+        const [favorites, totalItems] = await this.favoriteRepository.findAndCount({
+            where: { user: { id: userId } },
+            relations: ['product'],
+            skip,
+            take: sizeNumber,
+        });
+
+        const items = favorites.map(fav => {
+            const product = fav.product;
+            const price = product.originalPrice ? Number(product.originalPrice) : Number(product.price);
+            const discountPrice = Number(product.price);
+            return {
+                id: product.id,
+                name: product.name,
+                price: price,
+                discountPrice: discountPrice,
+                thumbnail: product.imageUrl || '',
+                isFavorite: true,
+            };
+        });
+
+        const totalPages = Math.ceil(totalItems / sizeNumber);
+
+        const response = new ApiResponse<WishlistResponse>(true, 'Lấy danh sách yêu thích thành công', { items });
+        response.pagination = {
+            page: pageNumber,
+            pageSize: sizeNumber,
+            totalItems,
+            totalPages,
+        };
+        return response;
+    }
 }

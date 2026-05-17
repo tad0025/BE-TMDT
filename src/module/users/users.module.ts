@@ -6,10 +6,11 @@ import { JwtModule } from "@nestjs/jwt";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ENV_VARS } from "src/constants/env.constants";
 import { UsersController } from "./users.controller";
+import { Favorite } from "../products/entities/favorite.entity";
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([User]),
+        TypeOrmModule.forFeature([User, Favorite]),
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -20,6 +21,6 @@ import { UsersController } from "./users.controller";
     ],
     controllers: [UsersController],
     providers: [UsersService],
-    exports: [UsersService]
+    exports: [UsersService],
 })
 export class UsersModule { }
