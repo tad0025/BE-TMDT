@@ -10,6 +10,7 @@ import { CustomThrottlerGuard } from './core/security/throttler/custom-throttler
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { UsersModule } from './module/users/users.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     CategoriesModule,
     CartModule,
     ReviewsModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [

@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany } from 'typeorm';
 import { EUserRole } from '../../users/enums/user.enum';
+import { Favorite } from '../../products/entities/favorite.entity';
 
 @Entity('users')
 export class User {
@@ -9,7 +10,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ select: false }) 
+  @Column({ select: false })
   password: string;
 
   @Column({ nullable: true })
@@ -20,6 +21,15 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ nullable: true })
+  gender: string;
+
+  @Column({ nullable: true })
+  dateOfBirth: string;
 
   @Column({ default: 0 })
   tokenVersion: number;
