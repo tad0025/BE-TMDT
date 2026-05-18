@@ -3,6 +3,7 @@ import { ProductsService } from './products.service';
 import { getallProductDto } from './dto/getallProduct.dto';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { UseGuards, Post } from '@nestjs/common';
+import { OptionalJwtAuthGuard } from '../../core/security/jwt/optional-jwt-auth.guard';
 
 @Controller('products')
 export class ProductsController {
@@ -25,6 +26,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getProductById(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?.id; // Lấy từ JwtAuthGuard (nếu có cấu hình giải mã token tùy chọn)
