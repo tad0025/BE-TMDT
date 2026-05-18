@@ -9,7 +9,7 @@ export class CartService {
   constructor(
     @InjectRepository(CartItem)
     private readonly cartItemRepository: Repository<CartItem>,
-  ) {}
+  ) { }
 
   async getCartCount(userId: string): Promise<number> {
     const items = await this.cartItemRepository.find({ where: { user: { id: userId } } });
@@ -31,6 +31,54 @@ export class CartService {
       });
     }
     await this.cartItemRepository.save(item);
+    return this.getCartCount(userId);
+  }
+
+  async getCartItems(userId: string) {
+    const items = await this.cartItemRepository.find({
+      where: { user: { id: userId } },
+      relations: ['product'],
+    });
+
+    return items.map(item => ({
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        imageUrl: item.product.imageUrl,
+        price: Number(item.product.price),
+      },
+      quantity: item.quantity,
+    }));
+  }
+
+  async updateQuantity(userId: string, productId: string, quantity: number): Promise<number> {
+    const item = await this.cartItemRepository.findOne({
+      where: { user: { id: userId }, product: { id: productId } },
+    });
+
+    if (!item) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Sản phẩm không có trong giỏ hàng');
+    }
+
+    if (quantity <= 0) {
+      await this.cartItemRepository.remove(item);
+    } else {
+      item.quantity = quantity;
+      await this.cartItemRepository.save(item);
+    }
+
+    return this.getCartCount(userId);
+  }
+
+  async removeFromCart(userId: string, productId: string): Promise<number> {
+    const item = await this.cartItemRepository.findOne({
+      where: { user: { id: userId }, product: { id: productId } },
+    });
+
+    if (item) {
+      await this.cartItemRepository.remove(item);
+    }
+
     return this.getCartCount(userId);
   }
 }
