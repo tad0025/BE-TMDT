@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
@@ -15,6 +16,7 @@ import { MailModule } from '../mails/mail.module';
     TypeOrmModule.forFeature([User]),
     PassportModule,
     MailModule,
+    CacheModule.register(),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

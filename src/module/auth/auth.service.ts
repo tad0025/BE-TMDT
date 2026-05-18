@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ApiResponse } from '../../core/dto/ApiResponse.dto';
 import { CustomException } from '../../core/exceptions/custom.exception';
@@ -13,15 +13,18 @@ import { EUserRole } from '../users/enums/user.enum';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ResetPasswordDto } from './dto/password.dto';
 import { OtpPurpose } from './enums/otp.enum';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+
+const OTP_TTL = 10 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
-  private otps = new Map<string, { otp: string; expiresAt: number, purpose: OtpPurpose }>();
-
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User) private userRepository: Repository<User>,
     private readonly mailerService: MailerService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) { }
 
   async login(loginDto: LoginDto): Promise<ApiResponse<any>> {
@@ -61,12 +64,12 @@ export class AuthService {
       throw new CustomException(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Mật khẩu xác nhận không khớp');
     }
 
-    const record = this.otps.get(email);
+    const record = await this.cacheManager.get<{ otp: string; expiresAt: number; purpose: OtpPurpose }>(email);
     if (!record) {
       throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_NOT_FOUND', 'Mã OTP không tồn tại hoặc chưa được gửi');
     }
     if (Date.now() > record.expiresAt) {
-      this.otps.delete(email);
+      await this.cacheManager.del(email);
       throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED', 'Mã OTP đã hết hạn');
     }
     if (record.otp !== otp) {
@@ -75,7 +78,7 @@ export class AuthService {
     if (record.purpose !== OtpPurpose.REGISTER) {
       throw new CustomException(HttpStatus.BAD_REQUEST, 'OTP_INVALID_PURPOSE', 'Mã OTP không hợp lệ cho thao tác đăng ký');
     }
-    this.otps.delete(email);
+    await this.cacheManager.del(email);
 
     const existingUser = await this.userRepository.findOne({ where: { email } });
     if (existingUser) {
@@ -115,9 +118,9 @@ export class AuthService {
   async sendOtp(dto: SendOtpDto): Promise<ApiResponse<null>> {
     const { email } = dto;
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000;
+    const expiresAt = Date.now() + OTP_TTL;
 
-    this.otps.set(email, { otp: generatedOtp, expiresAt, purpose: dto.purpose });
+    await this.cacheManager.set(email, { otp: generatedOtp, expiresAt, purpose: dto.purpose }, OTP_TTL + 5 * 60 * 1000);
 
     if (dto.purpose === OtpPurpose.REGISTER) {
       const existingUser = await this.userRepository.findOne({ where: { email } });
@@ -174,12 +177,12 @@ export class AuthService {
 
   async verifyOtp(dto: ResetPasswordDto): Promise<ApiResponse<null>> {
     const { email, otp } = dto;
-    const record = this.otps.get(email);
+    const record = await this.cacheManager.get<{ otp: string; expiresAt: number; purpose: OtpPurpose }>(email);
     if (!record) {
       return new ApiResponse(false, 'Mã OTP không tồn tại hoặc chưa được gửi', null);
     }
     if (Date.now() > record.expiresAt) {
-      this.otps.delete(email);
+      await this.cacheManager.del(email);
       return new ApiResponse(false, 'Mã OTP đã hết hạn', null);
     }
     if (record.otp !== otp) {
@@ -193,12 +196,12 @@ export class AuthService {
 
   async forgotPassword(dto: ResetPasswordDto): Promise<ApiResponse<null>> {
     const { email, otp, confirmPassword } = dto;
-    const record = this.otps.get(email);
+    const record = await this.cacheManager.get<{ otp: string; expiresAt: number; purpose: OtpPurpose }>(email);
     if (!record || record.otp !== otp || record.purpose !== OtpPurpose.FORGOT_PASSWORD || Date.now() > record.expiresAt) {
       return new ApiResponse(false, 'Mã OTP không hợp lệ hoặc đã hết hạn', null);
     }
 
-    this.otps.delete(email);
+    await this.cacheManager.del(email);
     const hashedPassword = await bcrypt.hash(confirmPassword, 10);
     await this.userRepository.update({ email }, { password: hashedPassword });
 
