@@ -19,9 +19,9 @@ export class ProductsService {
 
   async getAllProducts(page: number, pageSize: number, sortBy: EFilterState, categories: string[], minPrice: string, maxPrice: string): Promise<ApiResponse<any>> {
     const skip = (page - 1) * pageSize;
-    
+
     let where: FindOptionsWhere<Product> = {};
-    
+
     if (minPrice && maxPrice) {
       where.price = Between(Number(minPrice), Number(maxPrice)) as any;
     } else if (minPrice) {
@@ -70,17 +70,15 @@ export class ProductsService {
       rating: product.rating,
     }));
 
-    return {
-      success: true,
-      message: 'Lấy danh sách sản phẩm thành công',
-      data: formattedProducts,
-      pagination: {
-        page: Number(page),
-        pageSize: Number(pageSize),
-        totalItems,
-        totalPages,
-      },
+    const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', formattedProducts);
+    response.pagination = {
+      page: Number(page),
+      pageSize: Number(pageSize),
+      totalItems,
+      totalPages,
     };
+
+    return response;
   }
 
   // Cần inject thêm Favorite Repository vào constructor nếu chưa có

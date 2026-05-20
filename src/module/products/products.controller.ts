@@ -27,7 +27,7 @@ export class ProductsController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   async getProductById(@Param('id') id: string, @Req() req: any) {
-    const userId = req.user?.id; // Lấy từ JwtAuthGuard (nếu có cấu hình giải mã token tùy chọn)
+    const userId = req.user?.id;
     const data = await this.productsService.getProductById(id, userId);
     return { success: true, message: 'Lấy chi tiết sản phẩm thành công', data };
   }
