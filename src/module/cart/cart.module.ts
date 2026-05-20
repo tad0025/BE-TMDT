@@ -6,11 +6,10 @@ import { CartItem } from './entities/cart-item.entity';
 
 @Module({
   imports: [
-    // Khai báo Entity này để TypeORM inject được Repository vào CartService
     TypeOrmModule.forFeature([CartItem]),
   ],
   controllers: [CartController],
   providers: [CartService],
-  exports: [CartService], // Export nếu các module khác cần dùng chung
+  exports: [CartService],
 })
-export class CartModule {}
+export class CartModule { }
