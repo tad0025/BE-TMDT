@@ -6,7 +6,6 @@ import { Review } from './entities/review.entity';
 
 @Module({
   imports: [
-    // Khai báo Entity này để TypeORM inject được Repository vào ReviewsService
     TypeOrmModule.forFeature([Review]),
   ],
   controllers: [ReviewsController],

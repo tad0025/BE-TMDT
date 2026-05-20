@@ -3,6 +3,7 @@ import { ProductsService } from './products.service';
 import { getallProductDto } from './dto/getallProduct.dto';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { UseGuards, Post } from '@nestjs/common';
+import { OptionalJwtAuthGuard } from '../../core/security/jwt/optional-jwt-auth.guard';
 
 @Controller('products')
 export class ProductsController {
@@ -25,6 +26,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getProductById(@Param('id') id: string, @Req() req: any) {
     const userId = req.user?.id;
@@ -33,7 +35,7 @@ export class ProductsController {
   }
 
   @Post(':id/favorite')
-  @UseGuards(JwtAuthGuard) // Bắt buộc đăng nhập để tương tác wishlist
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async toggleFavorite(@Param('id') id: string, @Req() req: any) {
     const message = await this.productsService.toggleFavorite(id, req.user.id);

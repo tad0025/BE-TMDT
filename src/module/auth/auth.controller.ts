@@ -27,7 +27,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) { }
 
-  @Post('login') // POST /auth/login 
+  @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginDto: LoginDto,
@@ -38,9 +38,9 @@ export class AuthController {
     if (result.success && result.data?.accessToken) {
       const expiresStr = this.configService.get<StringValue>(ENV_VARS.JWT_ACCESS_EXPIRES_IN) || '7d';
       res.cookie('accessToken', result.data.accessToken, {
-        httpOnly: true, // Chống XSS (JavaScript không đọc được)
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict', // Chống CSRF
+        sameSite: 'strict',
         maxAge: ms(expiresStr),
       });
     }
@@ -48,25 +48,41 @@ export class AuthController {
     return result;
   }
 
-  @Post('send-otp') // POST /auth/send-otp 
+  @Post('send-otp')
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
   }
 
-  @Post('register') // POST /auth/register 
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.register(registerDto);
+
+    if (result.success && result.data?.accessToken) {
+      const expiresStr = this.configService.get<StringValue>(ENV_VARS.JWT_ACCESS_EXPIRES_IN) || '7d';
+      res.cookie('accessToken', result.data.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: ms(expiresStr),
+      });
+    }
+
+    return result;
   }
 
-  @Post('forgot-password') // POST /auth/forgot-password
+  @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('logout') // POST /auth/logout 
+  @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
     @Request() req,

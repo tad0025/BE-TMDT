@@ -28,7 +28,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.userRepository.findOne({ where: { id: payload.userId } });
 
-    // Nếu không tìm thấy user hoặc version trong token không khớp với DB -> Token hết hạn/Logout
     if (!user || user.tokenVersion !== payload.version) {
       throw new UnauthorizedException('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
     }

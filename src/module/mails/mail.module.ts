@@ -11,7 +11,7 @@ import { ENV_VARS } from 'src/constants/env.constants';
         transport: {
           host: config.get<string>(ENV_VARS.MAIL_HOST),
           port: config.get<number>(ENV_VARS.MAIL_PORT),
-          secure: config.get<number>(ENV_VARS.MAIL_PORT) === 465, // true for 465, false for other ports
+          secure: config.get<number>(ENV_VARS.MAIL_PORT) === 465,
           auth: {
             user: config.get<string>(ENV_VARS.MAIL_USER),
             pass: config.get<string>(ENV_VARS.MAIL_PASS),
