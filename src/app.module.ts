@@ -11,6 +11,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './module/users/users.module';
+import { CheckoutModule } from './module/checkout/checkout.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { UsersModule } from './module/users/users.module';
     CartModule,
     ReviewsModule,
     UsersModule,
+    CheckoutModule,
   ],
   controllers: [],
   providers: [
