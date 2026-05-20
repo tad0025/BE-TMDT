@@ -10,18 +10,26 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) { }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async getAllProducts(@Query() dto: getallProductDto) {
+  async getAllProducts(@Query() dto: getallProductDto, @Req() req: any) {
     const pageNumber = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
     const sizeNumber = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
+    const userId = req.user?.id;
+
+    // Lấy filter từ cả định dạng thô lồng nhau hoặc định dạng phẳng
+    const sortBy = dto?.filters?.sortBy ?? dto?.['filters[sortBy]'];
+    const categories = dto?.filters?.categories ?? dto?.['filters[categories]'];
+    const minPrice = dto?.filters?.minPrice ?? dto?.['filters[minPrice]'];
+    const maxPrice = dto?.filters?.maxPrice ?? dto?.['filters[maxPrice]'];
 
     return this.productsService.getAllProducts(
       pageNumber,
       sizeNumber,
-      dto?.filters?.sortBy,
-      dto?.filters?.categories,
-      dto?.filters?.minPrice,
-      dto?.filters?.maxPrice,
+      sortBy,
+      categories,
+      minPrice,
+      maxPrice,
     );
   }
 
