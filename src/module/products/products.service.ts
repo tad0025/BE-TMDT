@@ -17,7 +17,7 @@ export class ProductsService {
     private readonly favoriteRepository: Repository<Favorite>,
   ) { }
 
-  async getAllProducts(page: number, pageSize: number, sortBy: EFilterState, categories: string[], minPrice: string, maxPrice: string): Promise<ApiResponse<any>> {
+  async getAllProducts(page: number, pageSize: number, sortBy?: EFilterState, categories?: string[], minPrice?: string, maxPrice?: string): Promise<ApiResponse<any>> {
     const skip = (page - 1) * pageSize;
 
     let where: FindOptionsWhere<Product> = {};
