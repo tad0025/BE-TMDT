@@ -13,8 +13,6 @@ export class ProductsController {
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async getAllProducts(@Query() dto: getallProductDto, @Req() req: any) {
-    console.log('GetAllProducts req.query:', req.query);
-    console.log('GetAllProducts DTO received:', JSON.stringify(dto));
     const pageNumber = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
     const sizeNumber = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
     const userId = req.user?.id;
