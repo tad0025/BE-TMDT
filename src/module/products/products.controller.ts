@@ -15,13 +15,29 @@ export class ProductsController {
   async getAllProducts(@Query() dto: getallProductDto, @Req() req: any) {
     const pageNumber = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
     const sizeNumber = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
-    const userId = req.user?.id;
 
-    // Lấy filter từ cả định dạng thô lồng nhau hoặc định dạng phẳng
-    const sortBy = dto?.filters?.sortBy ?? dto?.['filters[sortBy]'];
-    const categories = dto?.filters?.categories ?? dto?.['filters[categories]'];
-    const minPrice = dto?.filters?.minPrice ?? dto?.['filters[minPrice]'];
-    const maxPrice = dto?.filters?.maxPrice ?? dto?.['filters[maxPrice]'];
+    const sortBy = dto?.['filters[sortBy]'];
+    const minPrice = dto?.['filters[minPrice]'] || undefined;
+    const maxPrice = dto?.['filters[maxPrice]'] || undefined;
+
+    let categories: string[] | undefined;
+    const rawQuery = req.query as Record<string, any>;
+
+    const rawFiltersObj = rawQuery?.filters as Record<string, any>;
+    if (rawFiltersObj?.categories) {
+      const rawCats = rawFiltersObj.categories;
+      categories = Array.isArray(rawCats) ? rawCats : [rawCats];
+    } else {
+      const catMap: Record<number, string> = {};
+      for (const key of Object.keys(rawQuery)) {
+        const match = key.match(/^filters\[categories\]\[(\d+)\]$/);
+        if (match) catMap[Number(match[1])] = rawQuery[key] as string;
+      }
+      const catValues = Object.keys(catMap)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((k) => catMap[Number(k)]);
+      if (catValues.length > 0) categories = catValues;
+    }
 
     return this.productsService.getAllProducts(
       pageNumber,

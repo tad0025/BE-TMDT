@@ -20,43 +20,51 @@ export class ProductsService {
   async getAllProducts(page: number, pageSize: number, sortBy?: EFilterState, categories?: string[], minPrice?: string, maxPrice?: string): Promise<ApiResponse<any>> {
     const skip = (page - 1) * pageSize;
 
-    let where: FindOptionsWhere<Product> = {};
+    // Debug log để kiểm tra giá trị nhận vào
+    console.log('[getAllProducts] categories =', categories, '| type =', typeof categories, '| isArray =', Array.isArray(categories));
+    console.log('[getAllProducts] sortBy =', sortBy, '| minPrice =', minPrice, '| maxPrice =', maxPrice);
 
-    if (minPrice && maxPrice) {
-      where.price = Between(Number(minPrice), Number(maxPrice)) as any;
-    } else if (minPrice) {
-      where.price = MoreThanOrEqual(Number(minPrice)) as any;
-    } else if (maxPrice) {
-      where.price = LessThanOrEqual(Number(maxPrice)) as any;
+    const qb = this.productsRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category');
+
+    // Lọc theo danh mục
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      qb.andWhere('category.id IN (:...categories)', { categories });
+      console.log('[getAllProducts] Applying category filter with:', categories);
     }
 
-    if (categories && categories.length > 0) {
-      where.category = { id: In(categories) };
+    // Lọc theo giá
+    const parsedMin = minPrice ? Number(minPrice) : NaN;
+    const parsedMax = maxPrice ? Number(maxPrice) : NaN;
+    if (!isNaN(parsedMin) && !isNaN(parsedMax)) {
+      qb.andWhere('product.price BETWEEN :minPrice AND :maxPrice', { minPrice: parsedMin, maxPrice: parsedMax });
+    } else if (!isNaN(parsedMin)) {
+      qb.andWhere('product.price >= :minPrice', { minPrice: parsedMin });
+    } else if (!isNaN(parsedMax)) {
+      qb.andWhere('product.price <= :maxPrice', { maxPrice: parsedMax });
     }
 
-    let order: FindOptionsOrder<Product> = {};
+    // Sắp xếp
     switch (sortBy) {
       case EFilterState.PRICE_LOW_TO_HIGH:
-        order.price = 'ASC';
+        qb.orderBy('product.price', 'ASC');
         break;
       case EFilterState.PRICE_HIGH_TO_LOW:
-        order.price = 'DESC';
+        qb.orderBy('product.price', 'DESC');
         break;
       case EFilterState.POPULARITY:
-        order.rating = 'DESC';
+        qb.orderBy('product.rating', 'DESC');
         break;
       case EFilterState.NEWEST:
       default:
-        order.createdAt = 'DESC';
+        qb.orderBy('product.createdAt', 'DESC');
         break;
     }
 
-    const [products, totalItems] = await this.productsRepository.findAndCount({
-      where,
-      skip,
-      take: pageSize,
-      order,
-    });
+    qb.skip(skip).take(pageSize);
+
+    const [products, totalItems] = await qb.getManyAndCount();
+    console.log('[getAllProducts] totalItems after filter =', totalItems);
 
     const totalPages = Math.ceil(totalItems / pageSize);
 
