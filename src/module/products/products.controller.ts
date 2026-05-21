@@ -16,23 +16,18 @@ export class ProductsController {
     const pageNumber = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
     const sizeNumber = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
 
-    // sortBy, minPrice, maxPrice: dùng flat-key từ dto (whitelist không strip vì có decorator)
     const sortBy = dto?.['filters[sortBy]'];
     const minPrice = dto?.['filters[minPrice]'] || undefined;
     const maxPrice = dto?.['filters[maxPrice]'] || undefined;
 
-    // categories: FE gửi filters[categories][0]=...&filters[categories][1]=...
-    // ValidationPipe strip nested object nên phải scan thủ công từ req.query
     let categories: string[] | undefined;
     const rawQuery = req.query as Record<string, any>;
 
-    // Thử nested format trước (nếu qs parser còn hoạt động)
     const rawFiltersObj = rawQuery?.filters as Record<string, any>;
     if (rawFiltersObj?.categories) {
       const rawCats = rawFiltersObj.categories;
       categories = Array.isArray(rawCats) ? rawCats : [rawCats];
     } else {
-      // Fallback: scan flat keys dạng filters[categories][0], filters[categories][1], ...
       const catMap: Record<number, string> = {};
       for (const key of Object.keys(rawQuery)) {
         const match = key.match(/^filters\[categories\]\[(\d+)\]$/);
@@ -43,9 +38,6 @@ export class ProductsController {
         .map((k) => catMap[Number(k)]);
       if (catValues.length > 0) categories = catValues;
     }
-
-    console.log('[Controller] sortBy =', sortBy, '| categories =', categories);
-    console.log('[Controller] req.query keys =', Object.keys(rawQuery));
 
     return this.productsService.getAllProducts(
       pageNumber,
