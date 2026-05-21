@@ -13,7 +13,7 @@ export class Product {
   @Column({ nullable: true })
   imageUrl: string;
 
-  @Column('simple-array', { nullable: true })
+  @Column({ type: 'json', nullable: true })
   images: string[];
 
   @Column({ type: 'longtext' })
@@ -34,7 +34,7 @@ export class Product {
   @Column({ default: 0 })
   soldCount: number;
 
-  @Column('simple-array', { nullable: true })
+  @Column({ type: 'json', nullable: true })
   materials: string[];
 
   @Column({ nullable: true })

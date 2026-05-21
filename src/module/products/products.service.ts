@@ -60,6 +60,20 @@ export class ProductsService {
 
     const totalPages = Math.ceil(totalItems / pageSize);
 
+    const safeParseArray = (value: any): string[] => {
+      if (!value) return [];
+      if (Array.isArray(value)) {
+        if (value.length === 1 && typeof value[0] === 'string' && value[0].startsWith('[')) {
+          try { return JSON.parse(value[0]); } catch { return value; }
+        }
+        return value;
+      }
+      if (typeof value === 'string') {
+        try { return JSON.parse(value); } catch { return [value]; }
+      }
+      return [];
+    };
+
     const formattedProducts = products.map((product) => ({
       id: product.id,
       name: product.name,
@@ -68,6 +82,8 @@ export class ProductsService {
       originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
       discountPercentage: product.discountPercentage,
       rating: product.rating,
+      images: safeParseArray(product.images),
+      materials: safeParseArray(product.materials),
     }));
 
     const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', formattedProducts);
@@ -100,8 +116,24 @@ export class ProductsService {
       isFavorite = !!favorite;
     }
 
+    const safeParseArray = (value: any): string[] => {
+      if (!value) return [];
+      if (Array.isArray(value)) {
+        if (value.length === 1 && typeof value[0] === 'string' && value[0].startsWith('[')) {
+          try { return JSON.parse(value[0]); } catch { return value; }
+        }
+        return value;
+      }
+      if (typeof value === 'string') {
+        try { return JSON.parse(value); } catch { return [value]; }
+      }
+      return [];
+    };
+
     return {
       ...product,
+      images: safeParseArray(product.images),
+      materials: safeParseArray(product.materials),
       categoryName: product.category?.name || 'Chưa phân loại',
       categoryId: product.category?.id,
       isFavorite,
