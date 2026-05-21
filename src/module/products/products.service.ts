@@ -130,6 +130,22 @@ export class ProductsService {
       return [];
     };
 
+    let totalProducts = 0;
+    let averageRating = 0;
+    
+    if (product.seller?.id) {
+      const sellerProducts = await this.productsRepository.find({
+        where: { seller: { id: product.seller.id } },
+        select: ['id', 'rating']
+      });
+      
+      totalProducts = sellerProducts.length;
+      if (totalProducts > 0) {
+        const sumRating = sellerProducts.reduce((sum, p) => sum + (p.rating || 0), 0);
+        averageRating = Number((sumRating / totalProducts).toFixed(1));
+      }
+    }
+
     return {
       ...product,
       images: safeParseArray(product.images),
@@ -141,7 +157,8 @@ export class ProductsService {
         id: product.seller?.id,
         name: product.seller?.fullName,
         avatarUrl: product.seller?.avatarUrl,
-        // Có thể bổ sung đếm totalProducts hoặc averageRating tại đây
+        totalProducts,
+        averageRating,
       },
     };
   }
