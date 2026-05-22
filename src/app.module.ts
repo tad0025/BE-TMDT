@@ -18,8 +18,8 @@ import { CheckoutModule } from './module/checkout/checkout.module';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
-        ttl: 2000,
-        limit: 5,
+        ttl: 1000,
+        limit: 6,
       },
     ]),
 
