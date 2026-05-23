@@ -12,6 +12,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './module/users/users.module';
 import { CheckoutModule } from './module/checkout/checkout.module';
+import { SellersModule } from './module/sellers/sellers.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CheckoutModule } from './module/checkout/checkout.module';
     ReviewsModule,
     UsersModule,
     CheckoutModule,
+    SellersModule,
   ],
   controllers: [],
   providers: [

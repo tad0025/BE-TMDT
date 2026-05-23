@@ -37,7 +37,7 @@ export class CartService {
   async getCartItems(userId: string) {
     const items = await this.cartItemRepository.find({
       where: { user: { id: userId } },
-      relations: ['product'],
+      relations: ['product', 'product.seller', 'product.seller.user'],
     });
 
     return items.map(item => ({
@@ -46,6 +46,13 @@ export class CartService {
         name: item.product.name,
         imageUrl: item.product.imageUrl,
         price: Number(item.product.price),
+        description: item.product.description,
+        seller: item.product.seller ? {
+          id: item.product.seller.id,
+          name: item.product.seller.user?.fullName,
+          avatarUrl: item.product.seller.user?.avatarUrl,
+          averageRating: item.product.seller.averageRating,
+        } : null,
       },
       quantity: item.quantity,
     }));
@@ -81,4 +88,4 @@ export class CartService {
 
     return this.getCartCount(userId);
   }
-}
+}
