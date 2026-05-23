@@ -2,6 +2,7 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CartItem } from './entities/cart-item.entity';
+import { Product } from '../products/entities/product.entity';
 import { CustomException } from '../../core/exceptions/custom.exception';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class CartService {
   constructor(
     @InjectRepository(CartItem)
     private readonly cartItemRepository: Repository<CartItem>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) { }
 
   async getCartCount(userId: string): Promise<number> {
@@ -37,8 +40,25 @@ export class CartService {
   async getCartItems(userId: string) {
     const items = await this.cartItemRepository.find({
       where: { user: { id: userId } },
-      relations: ['product'],
+      relations: ['product', 'product.seller'],
     });
+
+    const sellerIds = [...new Set(
+      items.map(item => item.product.seller?.id).filter(Boolean),
+    )];
+
+    const sellerRatingsMap = new Map<string, number>();
+    for (const sellerId of sellerIds) {
+      const sellerProducts = await this.productRepository.find({
+        where: { seller: { id: sellerId } },
+        select: ['id', 'rating'],
+      });
+      const total = sellerProducts.length;
+      const avgRating = total > 0
+        ? Number((sellerProducts.reduce((sum, p) => sum + (p.rating || 0), 0) / total).toFixed(1))
+        : 0;
+      sellerRatingsMap.set(sellerId, avgRating);
+    }
 
     return items.map(item => ({
       product: {
@@ -46,6 +66,13 @@ export class CartService {
         name: item.product.name,
         imageUrl: item.product.imageUrl,
         price: Number(item.product.price),
+        description: item.product.description,
+        seller: item.product.seller ? {
+          id: item.product.seller.id,
+          name: item.product.seller.fullName,
+          avatarUrl: item.product.seller.avatarUrl,
+          averageRating: sellerRatingsMap.get(item.product.seller.id) || 0,
+        } : null,
       },
       quantity: item.quantity,
     }));
