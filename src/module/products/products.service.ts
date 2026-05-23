@@ -109,7 +109,7 @@ export class ProductsService {
   async getProductById(id: string, userId?: string) {
     const product = await this.productsRepository.findOne({
       where: { id },
-      relations: ['category', 'seller'],
+      relations: ['category', 'seller', 'seller.user'],
     });
 
     if (!product) {
@@ -138,22 +138,6 @@ export class ProductsService {
       return [];
     };
 
-    let totalProducts = 0;
-    let averageRating = 0;
-    
-    if (product.seller?.id) {
-      const sellerProducts = await this.productsRepository.find({
-        where: { seller: { id: product.seller.id } },
-        select: ['id', 'rating']
-      });
-      
-      totalProducts = sellerProducts.length;
-      if (totalProducts > 0) {
-        const sumRating = sellerProducts.reduce((sum, p) => sum + (p.rating || 0), 0);
-        averageRating = Number((sumRating / totalProducts).toFixed(1));
-      }
-    }
-
     return {
       ...product,
       images: safeParseArray(product.images),
@@ -163,10 +147,10 @@ export class ProductsService {
       isFavorite,
       sellerInfo: {
         id: product.seller?.id,
-        name: product.seller?.fullName,
-        avatarUrl: product.seller?.avatarUrl,
-        totalProducts,
-        averageRating,
+        name: product.seller?.user?.fullName,
+        avatarUrl: product.seller?.user?.avatarUrl,
+        totalProducts: product.seller?.totalProducts || 0,
+        averageRating: product.seller?.averageRating || 0,
       },
     };
   }

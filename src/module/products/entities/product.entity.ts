@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
-import { User } from '../../users/entities/user.entity';
+import { Seller } from '../../sellers/entities/seller.entity';
 
 @Entity('products')
 export class Product {
@@ -55,6 +55,6 @@ export class Product {
   @ManyToOne(() => Category, (category) => category.products, { onDelete: 'SET NULL' })
   category: Category;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  seller: User;
-}
+  @ManyToOne(() => Seller, { onDelete: 'CASCADE' })
+  seller: Seller;
+}
