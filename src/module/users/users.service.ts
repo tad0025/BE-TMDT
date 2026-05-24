@@ -7,6 +7,8 @@ import { ApiResponse } from "src/core/dto/ApiResponse.dto";
 import { UpdateProfileRequest } from "./dto/users.dto";
 import { WishlistResponse } from "./dto/wishlist.dto";
 import { Favorite } from "../products/entities/favorite.entity";
+import { Address } from "./entities/address-users.entity";
+import { AddressDto, CreateAddressDto, UpdateAddressDto } from "./dto/address.dto";
 
 @Injectable()
 export class UsersService {
@@ -15,6 +17,8 @@ export class UsersService {
         private userRepository: Repository<User>,
         @InjectRepository(Favorite)
         private favoriteRepository: Repository<Favorite>,
+        @InjectRepository(Address)
+        private addressRepository: Repository<Address>,
     ) { }
 
     async me(userId: string): Promise<ApiResponse<User>> {
@@ -76,5 +80,122 @@ export class UsersService {
             totalPages,
         };
         return response;
+    }
+
+    // ─── Address CRUD ─────────────────────────────────────────────────────────
+
+    private mapToAddressDto(address: Address): AddressDto {
+        return {
+            id: address.id,
+            fullName: address.fullName,
+            phoneNumber: address.phoneNumber,
+            provinceCode: address.provinceCode,
+            provinceName: address.provinceName,
+            districtCode: address.districtCode,
+            districtName: address.districtName,
+            wardCode: address.wardCode,
+            wardName: address.wardName,
+            street: address.street,
+            latitude: address.latitude,
+            longitude: address.longitude,
+            fullAddress: address.fullAddress,
+            isDefault: address.isDefault,
+            createdAt: address.createdAt,
+        };
+    }
+
+    /**
+     * Lấy danh sách địa chỉ của user (địa chỉ mặc định lên đầu).
+     */
+    async getAddresses(userId: string): Promise<ApiResponse<AddressDto[]>> {
+        const addresses = await this.addressRepository.find({
+            where: { userId },
+            order: { isDefault: 'DESC', createdAt: 'ASC' },
+        });
+        return new ApiResponse(true, 'Lấy danh sách địa chỉ thành công', addresses.map(this.mapToAddressDto));
+    }
+
+    /**
+     * Lấy chi tiết một địa chỉ theo id.
+     */
+    async getAddressById(userId: string, addressId: number): Promise<ApiResponse<AddressDto>> {
+        const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
+        if (!address) {
+            throw new CustomException(HttpStatus.NOT_FOUND, 'ADDRESS_NOT_FOUND', 'Không tìm thấy địa chỉ');
+        }
+        return new ApiResponse(true, 'Lấy địa chỉ thành công', this.mapToAddressDto(address));
+    }
+
+    /**
+     * Tạo địa chỉ mới cho user.
+     * Nếu isDefault = true → tự động bỏ default của các địa chỉ cũ.
+     * Nếu đây là địa chỉ đầu tiên → tự động đặt làm default.
+     */
+    async createAddress(userId: string, dto: CreateAddressDto): Promise<ApiResponse<AddressDto>> {
+        const existingCount = await this.addressRepository.count({ where: { userId } });
+        const shouldBeDefault = dto.isDefault === true || existingCount === 0;
+
+        if (shouldBeDefault) {
+            // Bỏ default của tất cả địa chỉ hiện có
+            await this.addressRepository.update({ userId, isDefault: true }, { isDefault: false });
+        }
+
+        const address = this.addressRepository.create({
+            ...dto,
+            userId,
+            latitude: dto.latitude ?? 0,
+            longitude: dto.longitude ?? 0,
+            isDefault: shouldBeDefault,
+        });
+
+        const saved = await this.addressRepository.save(address);
+        return new ApiResponse(true, 'Thêm địa chỉ thành công', this.mapToAddressDto(saved));
+    }
+
+    /**
+     * Cập nhật địa chỉ.
+     * Nếu isDefault = true → bỏ default của các địa chỉ khác.
+     */
+    async updateAddress(userId: string, addressId: number, dto: UpdateAddressDto): Promise<ApiResponse<AddressDto>> {
+        const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
+        if (!address) {
+            throw new CustomException(HttpStatus.NOT_FOUND, 'ADDRESS_NOT_FOUND', 'Không tìm thấy địa chỉ');
+        }
+
+        if (dto.isDefault === true && !address.isDefault) {
+            await this.addressRepository.update({ userId, isDefault: true }, { isDefault: false });
+        }
+
+        Object.assign(address, dto);
+        const saved = await this.addressRepository.save(address);
+        return new ApiResponse(true, 'Cập nhật địa chỉ thành công', this.mapToAddressDto(saved));
+    }
+
+    /**
+     * Xóa địa chỉ.
+     * Nếu địa chỉ bị xóa là default → tự động đặt địa chỉ còn lại mới nhất làm default.
+     */
+    async deleteAddress(userId: string, addressId: number): Promise<ApiResponse<null>> {
+        const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
+        if (!address) {
+            throw new CustomException(HttpStatus.NOT_FOUND, 'ADDRESS_NOT_FOUND', 'Không tìm thấy địa chỉ');
+        }
+
+        const wasDefault = address.isDefault;
+        await this.addressRepository.remove(address);
+
+        // Nếu địa chỉ bị xóa là default → promote địa chỉ mới nhất còn lại
+        if (wasDefault) {
+            const next = await this.addressRepository.findOne({
+                where: { userId },
+                order: { createdAt: 'ASC' },
+            });
+            if (next) {
+                next.isDefault = true;
+                await this.addressRepository.save(next);
+            }
+        }
+
+        return new ApiResponse(true, 'Xóa địa chỉ thành công', null);
     }
 }

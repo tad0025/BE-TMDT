@@ -7,6 +7,7 @@ import { EFilterState } from './enums/EFilterState.enum';
 import { FindOptionsWhere, FindOptionsOrder, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
 import { CustomException } from '../../core/exceptions/custom.exception';
 import { Favorite } from './entities/favorite.entity';
+import { getallProductDto } from './dto/getallProduct.dto';
 
 @Injectable()
 export class ProductsService {
@@ -17,7 +18,32 @@ export class ProductsService {
     private readonly favoriteRepository: Repository<Favorite>,
   ) { }
 
-  async getAllProducts(page: number, pageSize: number, sortBy?: EFilterState, categories?: string[], minPrice?: string, maxPrice?: string): Promise<ApiResponse<any>> {
+  async getAllProducts(dto: getallProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
+    const page = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
+    const pageSize = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
+
+    const sortBy = dto?.['filters[sortBy]'];
+    const minPrice = dto?.['filters[minPrice]'] || undefined;
+    const maxPrice = dto?.['filters[maxPrice]'] || undefined;
+
+    let categories: string[] | undefined;
+
+    const rawFiltersObj = rawQuery?.filters as Record<string, any>;
+    if (rawFiltersObj?.categories) {
+      const rawCats = rawFiltersObj.categories;
+      categories = Array.isArray(rawCats) ? rawCats : [rawCats];
+    } else {
+      const catMap: Record<number, string> = {};
+      for (const key of Object.keys(rawQuery || {})) {
+        const match = key.match(/^filters\[categories\]\[(\d+)\]$/);
+        if (match) catMap[Number(match[1])] = rawQuery[key] as string;
+      }
+      const catValues = Object.keys(catMap)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((k) => catMap[Number(k)]);
+      if (catValues.length > 0) categories = catValues;
+    }
+
     const skip = (page - 1) * pageSize;
 
     // Debug log để kiểm tra giá trị nhận vào

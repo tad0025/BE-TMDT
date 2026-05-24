@@ -1,0 +1,57 @@
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { User } from "./user.entity";
+
+@Entity('addresses')
+export class Address {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @ManyToOne(() => User, (user) => user.addresses, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'userId' })
+    user: User;
+
+    @Column()
+    userId: string;
+
+    @Column()
+    fullName: string;
+
+    @Column()
+    phoneNumber: string;
+
+    @Column()
+    provinceCode: string;
+
+    @Column()
+    provinceName: string;
+
+    @Column()
+    districtCode: string;
+
+    @Column()
+    districtName: string;
+
+    @Column()
+    wardCode: string;
+
+    @Column()
+    wardName: string;
+
+    @Column()
+    street: string;
+
+    @Column({ type: 'double precision', default: 0 })
+    latitude: number;
+
+    @Column({ type: 'double precision', default: 0 })
+    longitude: number;
+
+    @Column({ type: 'text' })
+    fullAddress: string;
+
+    @Column({ default: false })
+    isDefault: boolean;  // Đánh dấu địa chỉ mặc định
+
+    @CreateDateColumn()
+    createdAt: Date;
+}

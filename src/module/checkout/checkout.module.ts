@@ -5,9 +5,10 @@ import { CheckoutService } from './checkout.service';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
+import { Address } from '../users/entities/address-users.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product])],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address])],
   controllers: [CheckoutController],
   providers: [CheckoutService],
   exports: [CheckoutService]
