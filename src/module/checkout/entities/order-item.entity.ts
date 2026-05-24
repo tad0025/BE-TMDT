@@ -26,4 +26,16 @@ export class OrderItem {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   price: number;
+
+  @Column({ nullable: true })
+  productName: string;
+
+  @Column({ nullable: true })
+  productImageUrl: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  originalPrice: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  discountPercentage: number;
 }
