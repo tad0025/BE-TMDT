@@ -37,11 +37,11 @@ export class Product {
   @Column({ type: 'json', nullable: true })
   materials: string[];
 
-  @Column({ nullable: true })
-  dimensions: string;
+  @Column({ type: 'json', nullable: true })
+  dimensions: number[];
 
   @Column({ nullable: true })
-  weight: string;
+  weight: number;
 
   @Column({ nullable: true })
   careInstructions: string;
@@ -57,4 +57,4 @@ export class Product {
 
   @ManyToOne(() => Seller, { onDelete: 'CASCADE' })
   seller: Seller;
-}
+}
