@@ -9,25 +9,25 @@ export class CreateAddressDto {
     @IsNotEmpty()
     phoneNumber: string;
 
-    @IsString()
+    @IsNumber()
     @IsNotEmpty()
-    provinceCode: string;
+    provinceCode: number;
 
     @IsString()
     @IsNotEmpty()
     provinceName: string;
 
-    @IsString()
+    @IsNumber()
     @IsNotEmpty()
-    districtCode: string;
+    districtCode: number;
 
     @IsString()
     @IsNotEmpty()
     districtName: string;
 
-    @IsString()
+    @IsNumber()
     @IsNotEmpty()
-    wardCode: string;
+    wardCode: number;
 
     @IsString()
     @IsNotEmpty()
@@ -114,11 +114,11 @@ export class AddressDto {
     id: number;
     fullName: string;
     phoneNumber: string;
-    provinceCode: string;
+    provinceCode: number;
     provinceName: string;
-    districtCode: string;
+    districtCode: number;
     districtName: string;
-    wardCode: string;
+    wardCode: number;
     wardName: string;
     street: string;
     latitude: number;

@@ -2,11 +2,11 @@ export class AddressResponseDto {
     id: number;
     fullName: string;
     phoneNumber: string;
-    provinceCode: string;
+    provinceCode: number;
     provinceName: string;
-    districtCode: string;
+    districtCode: number;
     districtName: string;
-    wardCode: string;
+    wardCode: number;
     wardName: string;
     street: string;
     latitude: number;
