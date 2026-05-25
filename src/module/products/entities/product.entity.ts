@@ -40,7 +40,7 @@ export class Product {
   @Column({ type: 'json', nullable: true })
   dimensions: number[];
 
-  @Column({ nullable: true })
+  @Column('float', { nullable: true })
   weight: number;
 
   @Column({ nullable: true })
