@@ -20,19 +20,19 @@ export class Address {
     phoneNumber: string;
 
     @Column()
-    provinceCode: string;
+    provinceCode: number;
 
     @Column()
     provinceName: string;
 
     @Column()
-    districtCode: string;
+    districtCode: number;
 
     @Column()
     districtName: string;
 
     @Column()
-    wardCode: string;
+    wardCode: number;
 
     @Column()
     wardName: string;

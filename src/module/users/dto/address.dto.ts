@@ -1,7 +1,5 @@
 import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
-// ─── Request DTOs ─────────────────────────────────────────────────────────────
-
 export class CreateAddressDto {
     @IsString()
     @IsNotEmpty()
