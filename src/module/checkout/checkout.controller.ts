@@ -11,14 +11,15 @@ export class CheckoutController {
   /**
    * POST /orders/prepare
    * Tính toán trước thông tin đơn hàng (không tạo đơn hàng thực sự).
-   * FE dùng để hiển thị trang xác nhận: địa chỉ, danh sách sản phẩm, phí ship, tổng tiền.
+   * FE gửi body dạng mảng: [{productId, quantity}, ...]
    */
   @UseGuards(JwtAuthGuard)
   @Post('orders/prepare')
   async prepareCheckout(
-    @Body() dto: PrepareCheckoutDto,
+    @Body() items: { productId: string; quantity: number }[],
     @Req() req: any,
   ) {
+    const dto: PrepareCheckoutDto = { items };
     const data = await this.checkoutService.prepareCheckout(dto, req.user.id);
     return { success: true, message: 'Tính toán đơn hàng thành công', data };
   }

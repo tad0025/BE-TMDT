@@ -31,50 +31,50 @@ export class UsersController {
     // ─── Address ─────────────────────────────────────────────────────────────────
 
     /**
-     * GET /users/me/addresses
+     * GET /users/me/address
      * Lấy danh sách địa chỉ (địa chỉ mặc định lên đầu).
      */
-    @Get('me/addresses')
+    @Get('me/address')
     @UseGuards(JwtAuthGuard)
     async getAddresses(@Req() req) {
         return this.usersService.getAddresses(req.user.id);
     }
 
     /**
-     * GET /users/me/addresses/:id
+     * GET /users/me/address/:id
      * Lấy chi tiết một địa chỉ.
      */
-    @Get('me/addresses/:id')
+    @Get('me/address/:id')
     @UseGuards(JwtAuthGuard)
     async getAddressById(@Req() req, @Param('id', ParseIntPipe) id: number) {
         return this.usersService.getAddressById(req.user.id, id);
     }
 
     /**
-     * POST /users/me/addresses
+     * POST /users/me/address
      * Tạo địa chỉ mới. Nếu là địa chỉ đầu tiên hoặc isDefault=true → tự set default.
      */
-    @Post('me/addresses')
+    @Post('me/address')
     @UseGuards(JwtAuthGuard)
     async createAddress(@Req() req, @Body() dto: CreateAddressDto) {
         return this.usersService.createAddress(req.user.id, dto);
     }
 
     /**
-     * PUT /users/me/addresses/:id
+     * PUT /users/me/address/:id
      * Cập nhật địa chỉ. Nếu isDefault=true → bỏ default của các địa chỉ khác.
      */
-    @Put('me/addresses/:id')
+    @Put('me/address/:id')
     @UseGuards(JwtAuthGuard)
     async updateAddress(@Req() req, @Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAddressDto) {
         return this.usersService.updateAddress(req.user.id, id, dto);
     }
 
     /**
-     * DELETE /users/me/addresses/:id
+     * DELETE /users/me/address/:id
      * Xóa địa chỉ. Nếu là địa chỉ default → tự promote địa chỉ cũ nhất còn lại.
      */
-    @Delete('me/addresses/:id')
+    @Delete('me/address/:id')
     @UseGuards(JwtAuthGuard)
     async deleteAddress(@Req() req, @Param('id', ParseIntPipe) id: number) {
         return this.usersService.deleteAddress(req.user.id, id);
