@@ -15,6 +15,7 @@ import { CheckoutModule } from './module/checkout/checkout.module';
 import { AdminsModule } from './module/admins/admins.module';
 import { StaffsModule } from './module/staffs/staffs.module';
 import { SellersModule } from './module/sellers/sellers.module';
+import { DashboardModule } from './module/admin-dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { SellersModule } from './module/sellers/sellers.module';
     SellersModule,
     AdminsModule,
     StaffsModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [
