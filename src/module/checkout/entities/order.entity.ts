@@ -1,6 +1,8 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { OrderItem } from './order-item.entity';
 import { EOrderStatus } from '../../checkout/enums/EOrderStatus.enum';
+import { EPaymentStatus } from '../../checkout/enums/EPaymentStatus.enum';
+import { EPaymentMethod } from '../../checkout/enums/EPaymentMethod.enum';
 import { Address } from '../../users/entities/address-users.entity';
 
 @Entity('orders')
@@ -16,6 +18,12 @@ export class Order {
 
   @Column({ type: 'enum', enum: EOrderStatus, default: EOrderStatus.PENDING })
   status: EOrderStatus;
+
+  @Column({ type: 'enum', enum: EPaymentStatus, default: EPaymentStatus.PENDING })
+  paymentStatus: EPaymentStatus;
+
+  @Column({ type: 'enum', enum: EPaymentMethod, default: EPaymentMethod.COD })
+  paymentMethod: EPaymentMethod;
 
   @Column({ nullable: true })
   addressId: number;

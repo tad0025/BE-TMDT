@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { EOrderStatus } from './enums/EOrderStatus.enum';
+import { EPaymentStatus } from './enums/EPaymentStatus.enum';
 import { ENV_VARS } from '../../constants/env.constants';
 import { Product } from '../products/entities/product.entity';
 import { Address } from '../users/entities/address-users.entity';
@@ -157,7 +158,7 @@ export class CheckoutService {
         },
         quantity: item.quantity,
         amount,
-      });
+        });
     }
 
     // 3. Tính phí ship
@@ -175,13 +176,13 @@ export class CheckoutService {
     };
   }
 
-  // ─── createMoMoPayment ───────────────────────────────────────────────────────
+  // ─── checkoutOrder ───────────────────────────────────────────────────────
 
   /**
-   * Tạo đơn hàng trong DB rồi tạo link thanh toán MoMo.
-   * Sử dụng CreateOrderDto (có addressId bắt buộc).
+   * Tạo đơn hàng trong DB rồi xử lý thanh toán.
+   * Trả về orderId, payUrl (nếu có), paymentRequired.
    */
-  async createMoMoPayment(dto: CreateOrderDto, userId: string): Promise<{ orderId: string; payUrl: string }> {
+  async checkoutOrder(dto: CreateOrderDto, userId: string): Promise<{ orderId: string; payUrl: string | null, paymentRequired: boolean }> {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Giỏ hàng trống');
     }
@@ -242,6 +243,8 @@ export class CheckoutService {
       shippingFee,
       totalAmount,
       status: EOrderStatus.PENDING,
+      paymentStatus: EPaymentStatus.PENDING,
+      paymentMethod: dto.paymentMethod,
       snapshotAddress: this.mapAddressToDto(address),
     });
     order = await this.orderRepository.save(order);
@@ -262,9 +265,13 @@ export class CheckoutService {
     );
     await this.orderItemRepository.save(orderItems);
 
-    // 5. Tạo link thanh toán MoMo
-    const payUrl = await this.buildMoMoPaymentUrl(orderId, totalAmount);
-    return { orderId, payUrl };
+    // 5. Xử lý thanh toán
+    if (dto.paymentMethod === 'MOMO') {
+      const payUrl = await this.buildMoMoPaymentUrl(orderId, totalAmount);
+      return { orderId, payUrl, paymentRequired: true };
+    }
+
+    return { orderId, payUrl: null, paymentRequired: false };
   }
 
   private async buildMoMoPaymentUrl(orderId: string, totalAmount: number): Promise<string> {
@@ -346,7 +353,7 @@ export class CheckoutService {
 
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
     if (order) {
-      order.status = resultCode === 0 ? EOrderStatus.PAID : EOrderStatus.FAILED;
+      order.paymentStatus = resultCode === 0 ? EPaymentStatus.PAID : EPaymentStatus.FAILED;
       await this.orderRepository.save(order);
     }
 
@@ -355,9 +362,9 @@ export class CheckoutService {
 
   // ─── getPaymentStatus ─────────────────────────────────────────────────────────
 
-  async getPaymentStatus(orderId: string, userId: string): Promise<EOrderStatus | null> {
+  async getPaymentStatus(orderId: string, userId: string): Promise<EPaymentStatus | null> {
     const order = await this.orderRepository.findOne({ where: { id: orderId, userId } });
     if (!order) return null;
-    return order.status;
+    return order.paymentStatus;
   }
 }
