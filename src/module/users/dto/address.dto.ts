@@ -1,4 +1,5 @@
 import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateAddressDto {
     @IsString()
@@ -9,6 +10,7 @@ export class CreateAddressDto {
     @IsNotEmpty()
     phoneNumber: string;
 
+    @Transform(({ value }) => Number(value))
     @IsNumber()
     @IsNotEmpty()
     provinceCode: number;
@@ -17,6 +19,7 @@ export class CreateAddressDto {
     @IsNotEmpty()
     provinceName: string;
 
+    @Transform(({ value }) => Number(value))
     @IsNumber()
     @IsNotEmpty()
     districtCode: number;
@@ -25,6 +28,7 @@ export class CreateAddressDto {
     @IsNotEmpty()
     districtName: string;
 
+    @Transform(({ value }) => Number(value))
     @IsNumber()
     @IsNotEmpty()
     wardCode: number;
@@ -37,10 +41,12 @@ export class CreateAddressDto {
     @IsNotEmpty()
     street: string;
 
+    @Transform(({ value }) => Number(value))
     @IsNumber()
     @IsOptional()
     latitude?: number;
 
+    @Transform(({ value }) => Number(value))
     @IsNumber()
     @IsOptional()
     longitude?: number;
