@@ -1,5 +1,5 @@
 export enum EOrderStatus {
   PENDING = 'PENDING',
-  PAID = 'PAID',
+  SUCCESS = 'SUCCESS',
   FAILED = 'FAILED',
 }

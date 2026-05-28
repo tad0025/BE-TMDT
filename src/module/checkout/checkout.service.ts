@@ -234,7 +234,7 @@ export class CheckoutService {
 
     const { orderId, resultCode } = ipnData;
     const order = await this.orderRepository.findOne({ where: { id: orderId } });
-    
+
     if (order) {
       order.paymentStatus = resultCode === 0 ? EPaymentStatus.PAID : EPaymentStatus.FAILED;
       await this.orderRepository.save(order);
@@ -243,9 +243,13 @@ export class CheckoutService {
     return true;
   }
 
-  async getPaymentStatus(orderId: string, userId: string): Promise<EPaymentStatus | null> {
+  async getPaymentStatus(orderId: string, userId: string): Promise<any> {
     const order = await this.orderRepository.findOne({ where: { id: orderId, userId } });
     if (!order) return null;
-    return order.paymentStatus;
+    return {
+      orderId: order.id,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus
+    };
   }
 }
