@@ -1,4 +1,6 @@
-import { Item, Bin, Packer } from 'bp3d';
+import * as bp3d from 'bp3d';
+
+const { Item, Bin, Packer } = bp3d;
 
 export interface ProductInput {
     id: string;

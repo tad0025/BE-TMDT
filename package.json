@@ -35,6 +35,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.16",
     "bcrypt": "^6.0.0",
+    "binpackingjs": "^4.1.0",
     "bp3d": "^1.1.0",
     "cache-manager": "^7.2.8",
     "class-transformer": "^0.5.1",
