@@ -75,7 +75,7 @@ export class DashboardService {
 
         const currentOrders = await this.orderRepo
             .createQueryBuilder('o')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now })
             .getMany();
@@ -85,7 +85,7 @@ export class DashboardService {
 
         const previousOrders = await this.orderRepo
             .createQueryBuilder('o')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: previousStart })
             .andWhere('o.createdAt < :end', { end: currentStart })
             .getMany();
@@ -177,7 +177,7 @@ export class DashboardService {
             .select(`DATE_FORMAT(o.createdAt, '${groupFormat}')`, 'label')
             .addSelect('COALESCE(SUM(o.totalAmount), 0)', 'revenue')
             .addSelect('COUNT(o.id)', 'orders')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now })
             .groupBy('label')
@@ -198,7 +198,7 @@ export class DashboardService {
         const totalRevenueResult = await this.orderRepo
             .createQueryBuilder('o')
             .select('COALESCE(SUM(o.totalAmount), 0)', 'total')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now })
             .getRawOne();
@@ -213,7 +213,7 @@ export class DashboardService {
             .select('c.id', 'categoryId')
             .addSelect('c.name', 'categoryName')
             .addSelect('COALESCE(SUM(oi.price * oi.quantity), 0)', 'revenue')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now })
             .groupBy('c.id')
@@ -242,7 +242,7 @@ export class DashboardService {
             .innerJoin('oi.order', 'o')
             .select('oi.productId', 'productId')
             .addSelect('COALESCE(SUM(oi.quantity), 0)', 'totalQty')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: oneWeekAgo })
             .andWhere('o.createdAt <= :end', { end: now })
             .groupBy('oi.productId')
@@ -253,7 +253,7 @@ export class DashboardService {
             .innerJoin('oi.order', 'o')
             .select('oi.productId', 'productId')
             .addSelect('COALESCE(SUM(oi.quantity), 0)', 'totalQty')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: twoWeeksAgo })
             .andWhere('o.createdAt < :end', { end: oneWeekAgo })
             .groupBy('oi.productId')
@@ -317,7 +317,7 @@ export class DashboardService {
             .addSelect('COALESCE(c.name, :uncategorized)', 'categoryName')
             .addSelect('COALESCE(SUM(oi.quantity), 0)', 'totalSales')
             .addSelect('p.stock', 'stock')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now })
             .setParameter('uncategorized', 'Chưa phân loại')
@@ -333,7 +333,7 @@ export class DashboardService {
             .innerJoin('oi.order', 'o')
             .innerJoin('oi.product', 'p')
             .select('COUNT(DISTINCT p.id)', 'cnt')
-            .where('o.status = :status', { status: EOrderStatus.PAID })
+            .where('o.status = :status', { status: EOrderStatus.SUCCESS })
             .andWhere('o.createdAt >= :start', { start: currentStart })
             .andWhere('o.createdAt <= :end', { end: now });
 
