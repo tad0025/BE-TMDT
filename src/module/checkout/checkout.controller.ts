@@ -47,6 +47,6 @@ export class CheckoutController {
     if (!status) {
       return { success: false, message: 'Không tìm thấy đơn hàng' };
     }
-    return { success: true, message: 'Kiểm tra trạng thái', data: { status } };
+    return { success: true, message: 'Kiểm tra trạng thái', data: status };
   }
 }
