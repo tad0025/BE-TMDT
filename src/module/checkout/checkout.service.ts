@@ -21,6 +21,7 @@ import {
 } from './dto/checkout-response.dto';
 import { ShippingService } from './services/shipping.service';
 import { MomoService } from './services/momo.service';
+import { CartItem } from '../cart/entities/cart-item.entity';
 
 @Injectable()
 export class CheckoutService {
@@ -33,6 +34,8 @@ export class CheckoutService {
     private productRepository: Repository<Product>,
     @InjectRepository(Address)
     private addressRepository: Repository<Address>,
+    @InjectRepository(CartItem)
+    private cartItemRepository: Repository<CartItem>,
     private shippingService: ShippingService,
     private momoService: MomoService,
   ) { }
@@ -225,7 +228,23 @@ export class CheckoutService {
       return { orderId, payUrl, paymentRequired: true };
     }
 
+    // For COD, the order is complete, clear items from cart immediately
+    await this.clearPurchasedItemsFromCart(userId, productIds);
+
     return { orderId, payUrl: null, paymentRequired: false };
+  }
+
+  private async clearPurchasedItemsFromCart(userId: string, productIds: string[]) {
+    if (!productIds || productIds.length === 0) return;
+    const items = await this.cartItemRepository.find({
+      where: {
+        user: { id: userId },
+        product: { id: In(productIds) }
+      }
+    });
+    if (items.length > 0) {
+      await this.cartItemRepository.remove(items);
+    }
   }
 
   async processMoMoIPN(ipnData: any): Promise<boolean> {
@@ -238,6 +257,13 @@ export class CheckoutService {
     if (order) {
       order.paymentStatus = resultCode === 0 ? EPaymentStatus.PAID : EPaymentStatus.FAILED;
       await this.orderRepository.save(order);
+
+      // If MOMO payment succeeded, clear items from cart
+      if (resultCode === 0) {
+        const orderItems = await this.orderItemRepository.find({ where: { orderId } });
+        const productIds = orderItems.map(item => item.productId);
+        await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      }
     }
 
     return true;

@@ -8,9 +8,10 @@ import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { Address } from '../users/entities/address-users.entity';
+import { CartItem } from '../cart/entities/cart-item.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address])],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address, CartItem])],
   controllers: [CheckoutController],
   providers: [CheckoutService, ShippingService, MomoService],
   exports: [CheckoutService, ShippingService, MomoService]

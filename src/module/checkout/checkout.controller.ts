@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus, Get, Param, Query } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
@@ -47,6 +47,16 @@ export class CheckoutController {
     if (!status) {
       return { success: false, message: 'Không tìm thấy đơn hàng' };
     }
-    return { success: true, message: 'Kiểm tra trạng thái', data: status };
+    return { success: true, message: 'Kiểm tra trạng thái', data: { status } };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('orders/checkout/result')
+  async getOrderResult(@Query('orderId') orderId: string, @Req() req: any) {
+    const data = await this.checkoutService.getPaymentStatus(orderId, req.user.id);
+    if (!data) {
+      return { success: false, message: 'Không tìm thấy đơn hàng' };
+    }
+    return { success: true, message: 'Lấy kết quả thanh toán thành công', data };
   }
 }
