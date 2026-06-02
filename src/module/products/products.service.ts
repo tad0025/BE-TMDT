@@ -7,7 +7,8 @@ import { EFilterState } from './enums/EFilterState.enum';
 import { FindOptionsWhere, FindOptionsOrder, Between, MoreThanOrEqual, LessThanOrEqual, In } from 'typeorm';
 import { CustomException } from '../../core/exceptions/custom.exception';
 import { Favorite } from './entities/favorite.entity';
-import { getallProductDto } from './dto/getallProduct.dto';
+import { Category } from '../categories/entities/category.entity';
+import { GetAllProductDto, CreateProductDto, UpdateProductDto } from './dto/product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -16,9 +17,11 @@ export class ProductsService {
     private productsRepository: Repository<Product>,
     @InjectRepository(Favorite)
     private readonly favoriteRepository: Repository<Favorite>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
   ) { }
 
-  async getAllProducts(dto: getallProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
+  async getAllProducts(dto: GetAllProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
     const page = dto?.page ? parseInt(dto.page.toString(), 10) : 1;
     const pageSize = dto?.pageSize ? parseInt(dto.pageSize.toString(), 10) : 50;
 
@@ -202,5 +205,48 @@ export class ProductsService {
       await this.favoriteRepository.save(newFav);
       return 'Đã thêm vào bộ sưu tập yêu thích';
     }
+  }
+
+  async createProduct(dto: CreateProductDto) {
+    const category = await this.categoryRepository.findOne({ where: { id: dto.categoryId } });
+    if (!category) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Danh mục không tồn tại');
+    }
+
+    const product = this.productsRepository.create({
+      ...dto,
+      category,
+    });
+
+    return await this.productsRepository.save(product);
+  }
+
+  async updateProduct(id: string, dto: UpdateProductDto) {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Sản phẩm không tồn tại');
+    }
+
+    if (dto.categoryId) {
+      const category = await this.categoryRepository.findOne({ where: { id: dto.categoryId } });
+      if (!category) {
+        throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Danh mục không tồn tại');
+      }
+      product.category = category;
+    }
+
+    Object.assign(product, dto);
+    delete (product as any).categoryId; // Prevent overriding relation object with string ID if happened
+
+    return await this.productsRepository.save(product);
+  }
+
+  async deleteProduct(id: string) {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Sản phẩm không tồn tại');
+    }
+
+    await this.productsRepository.remove(product);
   }
 }
