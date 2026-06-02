@@ -1,9 +1,12 @@
-import { Controller, Get, Param, Req, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Req, Query, HttpCode, HttpStatus, Body, Delete, Put } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { getallProductDto } from './dto/getallProduct.dto';
+import { GetAllProductDto, CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { UseGuards, Post } from '@nestjs/common';
 import { OptionalJwtAuthGuard } from '../../core/security/jwt/optional-jwt-auth.guard';
+import { RolesGuard } from '../../core/security/roles/roles.guard';
+import { Roles } from '../../core/security/roles/roles.decorator';
+import { EUserRole } from '../users/enums/user.enum';
 
 @Controller('products')
 export class ProductsController {
@@ -12,7 +15,7 @@ export class ProductsController {
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async getAllProducts(@Query() dto: getallProductDto, @Req() req: any) {
+  async getAllProducts(@Query() dto: GetAllProductDto, @Req() req: any) {
     return this.productsService.getAllProducts(dto, req.query);
   }
 
@@ -31,5 +34,32 @@ export class ProductsController {
   async toggleFavorite(@Param('id') id: string, @Req() req: any) {
     const message = await this.productsService.toggleFavorite(id, req.user.id);
     return { success: true, message, data: null };
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(EUserRole.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  async createProduct(@Body() dto: CreateProductDto, @Req() req: any) {
+    const data = await this.productsService.createProduct(dto);
+    return { success: true, message: 'Tạo sản phẩm thành công', data };
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(EUserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: any) {
+    const data = await this.productsService.updateProduct(id, dto);
+    return { success: true, message: 'Cập nhật sản phẩm thành công', data };
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(EUserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async deleteProduct(@Param('id') id: string, @Req() req: any) {
+    await this.productsService.deleteProduct(id);
+    return { success: true, message: 'Xóa sản phẩm thành công', data: null };
   }
 }
