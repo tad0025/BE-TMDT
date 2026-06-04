@@ -19,6 +19,16 @@ export class UpdateOrderStatusDto {
   note?: string;
 }
 
+export class UserUpdateOrderStatusDto {
+  @IsNotEmpty()
+  @IsEnum(EOrderStatus)
+  newStatus: EOrderStatus;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
 export class OrderListItemDto {
   id: string;
   createdAt: Date;
@@ -26,6 +36,7 @@ export class OrderListItemDto {
   totalAmount: number;
   totalProductQuantity: number;
   firstProductImageUrl: string;
+  firstProductName: string;
   buyerName: string;
   buyerAddress: string;
   buyerPhone: string;
