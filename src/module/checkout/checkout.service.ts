@@ -22,6 +22,7 @@ import {
 import { ShippingService } from './services/shipping.service';
 import { MomoService } from './services/momo.service';
 import { VnpayService } from './services/vnpay.service';
+import { PaypalService } from './services/paypal.service';
 import { CartItem } from '../cart/entities/cart-item.entity';
 
 @Injectable()
@@ -40,6 +41,7 @@ export class CheckoutService {
     private shippingService: ShippingService,
     private momoService: MomoService,
     private vnpayService: VnpayService,
+    private paypalService: PaypalService,
   ) { }
 
   private mapAddressToDto(address: Address): AddressResponseDto {
@@ -235,6 +237,11 @@ export class CheckoutService {
       return { orderId, payUrl, paymentRequired: true };
     }
 
+    if (dto.paymentMethod === 'PAYPAL') {
+      const payUrl = await this.paypalService.buildPayPalPaymentUrl(orderId, totalAmount);
+      return { orderId, payUrl, paymentRequired: true };
+    }
+
     // For COD, the order is complete, clear items from cart immediately
     await this.clearPurchasedItemsFromCart(userId, productIds);
 
@@ -303,6 +310,39 @@ export class CheckoutService {
     }
 
     return { RspCode: '00', Message: 'Confirm Success' };
+  }
+
+  async capturePayPalOrder(token: string, orderId: string): Promise<boolean> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (!order) return false;
+
+    if (order.paymentStatus === EPaymentStatus.PAID) return true;
+
+    const isSuccess = await this.paypalService.captureOrder(token);
+    
+    if (isSuccess) {
+      order.paymentStatus = EPaymentStatus.PAID;
+      await this.orderRepository.save(order);
+
+      const orderItems = await this.orderItemRepository.find({ where: { orderId } });
+      const productIds = orderItems.map(item => item.productId);
+      await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      return true;
+    } else {
+      order.paymentStatus = EPaymentStatus.FAILED;
+      await this.orderRepository.save(order);
+      return false;
+    }
+  }
+
+  async cancelPayPalOrder(orderId: string): Promise<boolean> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (order && order.paymentStatus !== EPaymentStatus.PAID) {
+      order.paymentStatus = EPaymentStatus.FAILED;
+      await this.orderRepository.save(order);
+      return true;
+    }
+    return false;
   }
 
   async getPaymentStatus(orderId: string, userId: string): Promise<any> {

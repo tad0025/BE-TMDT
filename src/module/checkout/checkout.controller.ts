@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus, Get, Param, Query } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, UseGuards, HttpCode, HttpStatus, Get, Param, Query } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
@@ -31,6 +31,7 @@ export class CheckoutController {
     let message = 'Đặt hàng thành công';
     if (dto.paymentMethod === 'MOMO') message = 'Tạo link thanh toán MoMo thành công';
     else if (dto.paymentMethod === 'VNPAY') message = 'Tạo link thanh toán VNPay thành công';
+    else if (dto.paymentMethod === 'PAYPAL') message = 'Tạo link thanh toán PayPal thành công';
 
     return { 
       success: true, 
@@ -49,6 +50,23 @@ export class CheckoutController {
   @Get('checkout/vnpay/ipn')
   async handleVnpayIPN(@Query() query: any) {
     return await this.checkoutService.processVnpayIPN(query);
+  }
+
+  @Get('checkout/paypal/capture')
+  async handlePayPalCapture(@Query('token') token: string, @Query('orderId') orderId: string, @Res() res: any) {
+    await this.checkoutService.capturePayPalOrder(token, orderId);
+    
+    // Redirect back to frontend result page
+    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
+  }
+
+  @Get('checkout/paypal/cancel')
+  async handlePayPalCancel(@Query('orderId') orderId: string, @Res() res: any) {
+    await this.checkoutService.cancelPayPalOrder(orderId);
+
+    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }
 
   @UseGuards(JwtAuthGuard)

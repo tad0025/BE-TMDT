@@ -5,6 +5,7 @@ import { CheckoutService } from './checkout.service';
 import { ShippingService } from './services/shipping.service';
 import { MomoService } from './services/momo.service';
 import { VnpayService } from './services/vnpay.service';
+import { PaypalService } from './services/paypal.service';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
@@ -14,7 +15,7 @@ import { CartItem } from '../cart/entities/cart-item.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address, CartItem])],
   controllers: [CheckoutController],
-  providers: [CheckoutService, ShippingService, MomoService, VnpayService],
-  exports: [CheckoutService, ShippingService, MomoService, VnpayService]
+  providers: [CheckoutService, ShippingService, MomoService, VnpayService, PaypalService],
+  exports: [CheckoutService, ShippingService, MomoService, VnpayService, PaypalService]
 })
 export class CheckoutModule {}
