@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Order } from '../checkout/entities/order.entity';
 import { OrderItem } from '../checkout/entities/order-item.entity';
-import { GetOrdersFilterDto, UpdateOrderStatusDto } from './dto/orders.dto';
+import { OrderListItemDto, GetOrdersFilterDto, UpdateOrderStatusDto, OrderDetailDto, OrderDetailProductItemDto, OrderStatusHistoryDto } from './dto/orders.dto';
 import { EOrderStatus } from '../checkout/enums/EOrderStatus.enum';
 
 @Injectable()
@@ -13,9 +13,10 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
-  ) {}
+  ) { }
 
-  async getOrdersByStatus(filterDto: GetOrdersFilterDto): Promise<Order[]> {
+
+  async getOrdersByStatus(filterDto: GetOrdersFilterDto): Promise<OrderListItemDto[]> {
     const { status } = filterDto;
     const query = this.orderRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items');
@@ -25,18 +26,45 @@ export class OrdersService {
       query.orderBy('order.createdAt', 'DESC');
     } else {
       // Mặc định: lọc PENDING, PREPARING, SHIPPING
-      query.andWhere('order.status IN (:...statuses)', { 
-        statuses: [EOrderStatus.PENDING, EOrderStatus.PREPARING, EOrderStatus.SHIPPING] 
+      query.andWhere('order.status IN (:...statuses)', {
+        statuses: [EOrderStatus.PENDING, EOrderStatus.PREPARING, EOrderStatus.SHIPPING]
       });
       // Order: PENDING -> PREPARING -> SHIPPING, sau đó DESC theo createdAt
       query.orderBy(
-        `FIELD(order.status, '${EOrderStatus.PENDING}', '${EOrderStatus.PREPARING}', '${EOrderStatus.SHIPPING}')`, 
+        `FIELD(order.status, '${EOrderStatus.PENDING}', '${EOrderStatus.PREPARING}', '${EOrderStatus.SHIPPING}')`,
         'ASC'
       );
       query.addOrderBy('order.createdAt', 'DESC');
     }
 
-    return query.getMany();
+    const orders = await query.getMany();
+
+    return orders.map(order => {
+      let totalProductQuantity = 0;
+      let firstProductImageUrl = '';
+
+      if (order.items && order.items.length > 0) {
+        totalProductQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
+        firstProductImageUrl = order.items[0].productImageUrl || '';
+      }
+
+      // Address mapping from snapshotAddress
+      const snapshot: any = order.snapshotAddress || {};
+
+      return {
+        id: order.id,
+        createdAt: order.createdAt,
+        orderStatus: order.status,
+        totalAmount: Number(order.totalAmount),
+        totalProductQuantity,
+        firstProductImageUrl,
+        buyerName: snapshot.fullName || '',
+        buyerAddress: snapshot.fullAddress || '',
+        buyerPhone: snapshot.phoneNumber || '',
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+      };
+    });
   }
 
   async getOrderStatusCounts(): Promise<any> {
@@ -68,24 +96,72 @@ export class OrdersService {
     return result;
   }
 
-  async getOrderDetailById(id: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({ 
+  private mapToOrderDetailDto(order: Order): OrderDetailDto {
+    const snapshot: any = order.snapshotAddress || {};
+
+    const statusHistory: OrderStatusHistoryDto[] = [
+      {
+        status: order.status,
+        timestamp: order.createdAt,
+        note: 'Cập nhật trạng thái tự động'
+      }
+    ];
+
+    const items: OrderDetailProductItemDto[] = (order.items || []).map(item => ({
+      productId: item.productId,
+      productName: item.productName || 'Sản phẩm',
+      productImageUrl: item.productImageUrl || '',
+      price: Number(item.price),
+      originalPrice: Number(item.originalPrice || item.price),
+      discountPercentage: Number(item.discountPercentage || 0),
+      quantity: item.quantity,
+      amount: Number(item.price) * item.quantity
+    }));
+
+    return {
+      id: order.id,
+      createdAt: order.createdAt,
+      statusHistory,
+      orderStatus: order.status,
+      buyerName: snapshot.fullName || order.address?.fullName || '',
+      buyerPhone: snapshot.phoneNumber || order.address?.phoneNumber || '',
+      buyerAddress: snapshot.fullAddress || order.address?.fullAddress || '',
+      latitude: Number(snapshot.latitude || order.address?.latitude || 0),
+      longitude: Number(snapshot.longitude || order.address?.longitude || 0),
+      items,
+      subTotal: Number(order.subTotal),
+      shippingFee: Number(order.shippingFee),
+      discountAmount: 0,
+      totalAmount: Number(order.totalAmount),
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      cancelReason: ''
+    };
+  }
+
+  async getOrderDetailById(id: string): Promise<OrderDetailDto> {
+    const order = await this.orderRepository.findOne({
       where: { id },
       relations: ['items', 'address']
     });
-    
+
     if (!order) {
       throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${id}`);
     }
-    
-    return order;
+
+    return this.mapToOrderDetailDto(order);
   }
 
-  async updateOrderStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<Order> {
-    const order = await this.getOrderDetailById(id);
+  async updateOrderStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<OrderDetailDto> {
+    const order = await this.orderRepository.findOne({ where: { id }, relations: ['items', 'address'] });
+    if (!order) throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${id}`);
     order.status = updateDto.status;
-    // Nếu có 'note', bạn có thể cần lưu vào một bảng OrderHistory hoặc tương tự
-    // Tạm thời ở đây chỉ cập nhật trạng thái đơn hàng
-    return this.orderRepository.save(order);
+    const saved = await this.orderRepository.save(order);
+    // Reload với relations đầy đủ sau khi save
+    const reloaded = await this.orderRepository.findOne({
+      where: { id: saved.id },
+      relations: ['items', 'address']
+    });
+    return this.mapToOrderDetailDto(reloaded!);
   }
 }
