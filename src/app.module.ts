@@ -17,6 +17,7 @@ import { StaffsModule } from './module/staffs/staffs.module';
 import { SellersModule } from './module/sellers/sellers.module';
 import { DashboardModule } from './module/admin-dashboard/dashboard.module';
 import { MediaModule } from './module/media/media.module';
+import { OrdersModule } from './module/orders/orders.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { MediaModule } from './module/media/media.module';
     StaffsModule,
     DashboardModule,
     MediaModule,
+    OrdersModule,
   ],
   controllers: [],
   providers: [
