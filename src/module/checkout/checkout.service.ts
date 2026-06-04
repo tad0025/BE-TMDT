@@ -21,6 +21,8 @@ import {
 } from './dto/checkout-response.dto';
 import { ShippingService } from './services/shipping.service';
 import { MomoService } from './services/momo.service';
+import { VnpayService } from './services/vnpay.service';
+import { PaypalService } from './services/paypal.service';
 import { CartItem } from '../cart/entities/cart-item.entity';
 
 @Injectable()
@@ -38,6 +40,8 @@ export class CheckoutService {
     private cartItemRepository: Repository<CartItem>,
     private shippingService: ShippingService,
     private momoService: MomoService,
+    private vnpayService: VnpayService,
+    private paypalService: PaypalService,
   ) { }
 
   private mapAddressToDto(address: Address): AddressResponseDto {
@@ -139,7 +143,7 @@ export class CheckoutService {
     };
   }
 
-  async checkoutOrder(dto: CreateOrderDto, userId: string): Promise<{ orderId: string; payUrl: string | null, paymentRequired: boolean }> {
+  async checkoutOrder(dto: CreateOrderDto, userId: string, ipAddr: string = '127.0.0.1'): Promise<{ orderId: string; payUrl: string | null, paymentRequired: boolean }> {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Giỏ hàng trống');
     }
@@ -228,6 +232,16 @@ export class CheckoutService {
       return { orderId, payUrl, paymentRequired: true };
     }
 
+    if (dto.paymentMethod === 'VNPAY') {
+      const payUrl = this.vnpayService.buildVnpayPaymentUrl(orderId, totalAmount, ipAddr);
+      return { orderId, payUrl, paymentRequired: true };
+    }
+
+    if (dto.paymentMethod === 'PAYPAL') {
+      const payUrl = await this.paypalService.buildPayPalPaymentUrl(orderId, totalAmount);
+      return { orderId, payUrl, paymentRequired: true };
+    }
+
     // For COD, the order is complete, clear items from cart immediately
     await this.clearPurchasedItemsFromCart(userId, productIds);
 
@@ -267,6 +281,68 @@ export class CheckoutService {
     }
 
     return true;
+  }
+
+  async processVnpayIPN(query: any): Promise<{ RspCode: string; Message: string }> {
+    const isValid = this.vnpayService.verifyIpnSignature(query);
+    if (!isValid) return { RspCode: '97', Message: 'Invalid signature' };
+
+    const orderId = query['vnp_TxnRef'];
+    const vnp_ResponseCode = query['vnp_ResponseCode'];
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+
+    if (!order) return { RspCode: '01', Message: 'Order not found' };
+
+    if (order.paymentStatus === EPaymentStatus.PAID) {
+      return { RspCode: '02', Message: 'Order already confirmed' };
+    }
+
+    if (vnp_ResponseCode === '00') {
+      order.paymentStatus = EPaymentStatus.PAID;
+      await this.orderRepository.save(order);
+
+      const orderItems = await this.orderItemRepository.find({ where: { orderId } });
+      const productIds = orderItems.map(item => item.productId);
+      await this.clearPurchasedItemsFromCart(order.userId, productIds);
+    } else {
+      order.paymentStatus = EPaymentStatus.FAILED;
+      await this.orderRepository.save(order);
+    }
+
+    return { RspCode: '00', Message: 'Confirm Success' };
+  }
+
+  async capturePayPalOrder(token: string, orderId: string): Promise<boolean> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (!order) return false;
+
+    if (order.paymentStatus === EPaymentStatus.PAID) return true;
+
+    const isSuccess = await this.paypalService.captureOrder(token);
+    
+    if (isSuccess) {
+      order.paymentStatus = EPaymentStatus.PAID;
+      await this.orderRepository.save(order);
+
+      const orderItems = await this.orderItemRepository.find({ where: { orderId } });
+      const productIds = orderItems.map(item => item.productId);
+      await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      return true;
+    } else {
+      order.paymentStatus = EPaymentStatus.FAILED;
+      await this.orderRepository.save(order);
+      return false;
+    }
+  }
+
+  async cancelPayPalOrder(orderId: string): Promise<boolean> {
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (order && order.paymentStatus !== EPaymentStatus.PAID) {
+      order.paymentStatus = EPaymentStatus.FAILED;
+      await this.orderRepository.save(order);
+      return true;
+    }
+    return false;
   }
 
   async getPaymentStatus(orderId: string, userId: string): Promise<any> {
