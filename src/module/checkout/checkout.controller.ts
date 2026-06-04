@@ -25,10 +25,16 @@ export class CheckoutController {
     @Body() dto: CreateOrderDto,
     @Req() req: any,
   ) {
-    const result = await this.checkoutService.checkoutOrder(dto, req.user.id);
+    const ipAddr = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '127.0.0.1';
+    const result = await this.checkoutService.checkoutOrder(dto, req.user.id, ipAddr);
+    
+    let message = 'Đặt hàng thành công';
+    if (dto.paymentMethod === 'MOMO') message = 'Tạo link thanh toán MoMo thành công';
+    else if (dto.paymentMethod === 'VNPAY') message = 'Tạo link thanh toán VNPay thành công';
+
     return { 
       success: true, 
-      message: dto.paymentMethod === 'MOMO' ? 'Tạo link thanh toán thành công' : 'Đặt hàng thành công', 
+      message, 
       data: result 
     };
   }
@@ -38,6 +44,11 @@ export class CheckoutController {
   async handleMoMoIPN(@Body() ipnData: any) {
     await this.checkoutService.processMoMoIPN(ipnData);
     return;
+  }
+
+  @Get('checkout/vnpay/ipn')
+  async handleVnpayIPN(@Query() query: any) {
+    return await this.checkoutService.processVnpayIPN(query);
   }
 
   @UseGuards(JwtAuthGuard)
