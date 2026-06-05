@@ -1,7 +1,6 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary, UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
-import * as streamifier from 'streamifier';
+import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
 export class MediaService {
@@ -9,50 +8,10 @@ export class MediaService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  // ─── Legacy Upload (FE → BE → Cloudinary) ────────────────────────────────────
-  // File được tự động gắn tag 'tmp'. Chỉ mất tag khi gọi confirmUpload().
-
-  uploadFile(
-    file: Express.Multer.File,
-    folder: string = 'tm-dt',
-  ): Promise<UploadApiResponse | UploadApiErrorResponse> {
-    if (!file) {
-      throw new BadRequestException('File is not provided');
-    }
-
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-          tags: ['tmp'],
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          if (!result) return reject(new Error('Upload failed'));
-          resolve(result);
-        },
-      );
-
-      streamifier.createReadStream(file.buffer).pipe(uploadStream);
-    });
-  }
-
-  async uploadMultipleFiles(
-    files: Express.Multer.File[],
-    folder: string = 'tm-dt',
-  ): Promise<(UploadApiResponse | UploadApiErrorResponse)[]> {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('Files are not provided');
-    }
-
-    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
-    return Promise.all(uploadPromises);
-  }
-
   // ─── Signed Upload (FE → Cloudinary trực tiếp) ───────────────────────────────
   // BE ký signature kèm tag 'tmp'. FE dùng params này POST thẳng lên Cloudinary.
   // FE gửi: file + signature + timestamp + api_key + folder + tags='tmp'
-  // URL: https://api.cloudinary.com/v1_1/{cloudName}/image/upload
+  // Upload URL: https://api.cloudinary.com/v1_1/{cloudName}/image/upload
 
   generateSignedUploadParams(folder: string = 'tm-dt') {
     const timestamp = Math.round(Date.now() / 1000);
@@ -60,7 +19,7 @@ export class MediaService {
     const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
     const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
 
-    // 'tags' phải nằm trong paramsToSign để signature bắt buộc FE truyền đúng tag
+    // 'tags' nằm trong paramsToSign để signature bắt buộc FE truyền đúng tag
     const paramsToSign: Record<string, string | number> = {
       folder,
       tags: 'tmp',
@@ -83,8 +42,8 @@ export class MediaService {
   }
 
   // ─── Confirm Upload ───────────────────────────────────────────────────────────
-  // Gọi khi file được lưu chính thức (gắn vào sản phẩm, user profile, v.v.)
-  // Xóa tag 'tmp' → Cloudinary sẽ không xóa file này trong chu kỳ cleanup.
+  // Gọi khi file được lưu chính thức (gắn vào sản phẩm, avatar, v.v.)
+  // Xóa tag 'tmp' → file không bị scheduler cleanup hàng đêm xóa.
 
   async confirmUpload(publicIds: string[]): Promise<void> {
     if (!publicIds || publicIds.length === 0) {
@@ -97,7 +56,7 @@ export class MediaService {
 
   // ─── Cleanup Orphan Tmp Files ─────────────────────────────────────────────────
   // Gọi bởi MediaScheduler định kỳ mỗi nửa đêm.
-  // Hỗ trợ pagination để xử lý >500 files tmp.
+  // Hỗ trợ pagination để xử lý >500 files tmp cùng lúc.
 
   async cleanupOrphanTmpFiles(): Promise<{ deleted: number }> {
     let nextCursor: string | undefined;
@@ -112,7 +71,9 @@ export class MediaService {
         ...(nextCursor ? { next_cursor: nextCursor } : {}),
       });
 
-      const publicIds: string[] = result.resources.map((r: { public_id: string }) => r.public_id);
+      const publicIds: string[] = result.resources.map(
+        (r: { public_id: string }) => r.public_id,
+      );
 
       if (publicIds.length > 0) {
         batchCount++;

@@ -1,17 +1,12 @@
 import {
   Controller,
-  Post,
   Patch,
   Get,
-  UseInterceptors,
-  UploadedFile,
-  UploadedFiles,
   BadRequestException,
   Query,
   UseGuards,
   Body,
 } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { MediaService } from './media.service';
 import { JwtAuthGuard } from 'src/core/security/jwt/jwt-auth.guard';
 
@@ -23,79 +18,20 @@ class ConfirmUploadDto {
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
-  // ─── Legacy Upload (FE → BE → Cloudinary) ──────────────────────────────────
-
-  @Post('upload')
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(
-    @UploadedFile() file: Express.Multer.File,
-    @Query('folder') folder?: string,
-  ) {
-    if (!file) {
-      throw new BadRequestException('File is required');
-    }
-
-    try {
-      const result = await this.mediaService.uploadFile(file, folder);
-
-      return {
-        success: true,
-        message: 'File uploaded successfully (tagged as tmp, call /media/confirm to finalize)',
-        data: {
-          url: result.secure_url,
-          publicId: result.public_id,
-          format: result.format,
-          bytes: result.bytes,
-        },
-      };
-    } catch {
-      throw new BadRequestException('Error uploading file to Cloudinary');
-    }
-  }
-
-  @Post('uploads')
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FilesInterceptor('files'))
-  async uploadMultipleFiles(
-    @UploadedFiles() files: Express.Multer.File[],
-    @Query('folder') folder?: string,
-  ) {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('Files are required');
-    }
-
-    try {
-      const results = await this.mediaService.uploadMultipleFiles(files, folder);
-
-      return {
-        success: true,
-        message: 'Files uploaded successfully (tagged as tmp, call /media/confirm to finalize)',
-        data: results.map((result) => ({
-          url: result.secure_url,
-          publicId: result.public_id,
-          format: result.format,
-          bytes: result.bytes,
-        })),
-      };
-    } catch {
-      throw new BadRequestException('Error uploading files to Cloudinary');
-    }
-  }
-
-  // ─── Signed Upload (FE → Cloudinary trực tiếp) ─────────────────────────────
-
   /**
    * GET /media/sign?folder=xxx
    *
-   * Trả về signed params để FE upload thẳng lên Cloudinary mà không qua BE.
+   * Tạo signed params để FE upload thẳng lên Cloudinary mà không qua BE server.
    * FE thực hiện POST multipart/form-data tới `uploadUrl` với các trường:
-   *   - file        : File thực tế
-   *   - api_key     : từ response
-   *   - signature   : từ response
-   *   - timestamp   : từ response
-   *   - folder      : từ response
+   *   - file        : File thực tế người dùng chọn
+   *   - api_key     : lấy từ response
+   *   - signature   : lấy từ response
+   *   - timestamp   : lấy từ response
+   *   - folder      : lấy từ response
    *   - tags        : 'tmp' (bắt buộc, đã được ký trong signature)
+   *
+   * Sau khi upload thành công, Cloudinary trả về { public_id, secure_url }.
+   * FE lưu public_id để gọi PATCH /media/confirm khi lưu thực thể chính thức.
    */
   @Get('sign')
   @UseGuards(JwtAuthGuard)
@@ -113,7 +49,7 @@ export class MediaController {
    * Body: { "publicIds": ["folder/abc123", "folder/def456"] }
    *
    * Gọi khi file được lưu chính thức (gắn vào sản phẩm, avatar, v.v.).
-   * Xóa tag 'tmp' → file không bị scheduler cleanup hàng đêm.
+   * Xóa tag 'tmp' → file không bị scheduler cleanup hàng đêm xóa.
    */
   @Patch('confirm')
   @UseGuards(JwtAuthGuard)
