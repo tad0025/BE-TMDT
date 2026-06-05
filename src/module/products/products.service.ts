@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -9,9 +9,12 @@ import { CustomException } from '../../core/exceptions/custom.exception';
 import { Favorite } from './entities/favorite.entity';
 import { Category } from '../categories/entities/category.entity';
 import { GetAllProductDto, CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
@@ -19,6 +22,7 @@ export class ProductsService {
     private readonly favoriteRepository: Repository<Favorite>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    private readonly mediaService: MediaService,
   ) { }
 
   async getAllProducts(dto: GetAllProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
@@ -213,12 +217,27 @@ export class ProductsService {
       throw new CustomException(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Danh mục không tồn tại');
     }
 
+    const { mediaPublicIds, ...productData } = dto;
+
     const product = this.productsRepository.create({
-      ...dto,
+      ...productData,
       category,
     });
 
-    return await this.productsRepository.save(product);
+    const saved = await this.productsRepository.save(product);
+
+    // Tự động xóa tag 'tmp' sau khi tạo sản phẩm thành công
+    // FE không cần gọi PATCH /media/confirm riêng
+    if (mediaPublicIds && mediaPublicIds.length > 0) {
+      try {
+        await this.mediaService.confirmUpload(mediaPublicIds);
+      } catch (err) {
+        // Không throw — lỗi confirm không được phép huỷ việc lưu sản phẩm
+        this.logger.warn(`[createProduct] Could not confirm media for product ${saved.id}: ${err?.message}`);
+      }
+    }
+
+    return saved;
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
@@ -235,10 +254,22 @@ export class ProductsService {
       product.category = category;
     }
 
-    Object.assign(product, dto);
-    delete (product as any).categoryId; // Prevent overriding relation object with string ID if happened
+    const { mediaPublicIds, ...updateData } = dto;
+    Object.assign(product, updateData);
+    delete (product as any).categoryId;
 
-    return await this.productsRepository.save(product);
+    const saved = await this.productsRepository.save(product);
+
+    // Tự động xóa tag 'tmp' sau khi cập nhật sản phẩm thành công
+    if (mediaPublicIds && mediaPublicIds.length > 0) {
+      try {
+        await this.mediaService.confirmUpload(mediaPublicIds);
+      } catch (err) {
+        this.logger.warn(`[updateProduct] Could not confirm media for product ${id}: ${err?.message}`);
+      }
+    }
+
+    return saved;
   }
 
   async deleteProduct(id: string) {
