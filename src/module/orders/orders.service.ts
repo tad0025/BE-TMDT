@@ -177,7 +177,9 @@ export class OrdersService {
       if (status === EOrderStatus.SUCCESS) {
         query.andWhere('order.status IN (:...statuses)', { statuses: [EOrderStatus.SUCCESS, EOrderStatus.DELIVERED] });
       } else if (status === EOrderStatus.CANCELLED) {
-        query.andWhere('order.status IN (:...statuses)', { statuses: [EOrderStatus.CANCELLED, EOrderStatus.RETURNED] });
+        query.andWhere('order.status IN (:...statuses)', { statuses: [EOrderStatus.CANCELLED] });
+      } else if (status === EOrderStatus.RETURNED) {
+        query.andWhere('order.status IN (:...statuses)', { statuses: [EOrderStatus.RETURNED] });
       } else {
         query.andWhere('order.status = :status', { status });
       }
