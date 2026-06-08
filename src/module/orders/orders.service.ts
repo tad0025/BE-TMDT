@@ -111,6 +111,7 @@ export class OrdersService {
         ];
 
     const items: OrderDetailProductItemDto[] = (order.items || []).map(item => ({
+      orderItemId: item.id,
       productId: item.productId,
       productName: item.productName || 'Sản phẩm',
       productImageUrl: item.productImageUrl || '',
@@ -118,7 +119,8 @@ export class OrdersService {
       originalPrice: Number(item.originalPrice || item.price),
       discountPercentage: Number(item.discountPercentage || 0),
       quantity: item.quantity,
-      amount: Number(item.price) * item.quantity
+      amount: Number(item.price) * item.quantity,
+      isReviewed: item.isReviewed || false
     }));
 
     return {

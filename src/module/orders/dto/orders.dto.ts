@@ -51,6 +51,7 @@ export class OrderStatusHistoryDto {
 }
 
 export class OrderDetailProductItemDto {
+  orderItemId: string;
   productId: string;
   productName: string;
   productImageUrl: string;
@@ -59,6 +60,7 @@ export class OrderDetailProductItemDto {
   discountPercentage: number;
   quantity: number;
   amount: number;
+  isReviewed?: boolean;
 }
 
 export class OrderDetailDto {
