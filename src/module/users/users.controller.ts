@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, ParseIntPipe, Query, Req, UseGuards } from "@nestjs/common";
 import { UsersService } from "./users.service";
 import { JwtAuthGuard } from "../../core/security/jwt/jwt-auth.guard";
 import { UpdateProfileRequest } from "./dto/users.dto";
@@ -78,5 +78,15 @@ export class UsersController {
     @UseGuards(JwtAuthGuard)
     async deleteAddress(@Req() req, @Param('id', ParseIntPipe) id: number) {
         return this.usersService.deleteAddress(req.user.id, id);
+    }
+
+    /**
+     * PATCH /users/me/address/:id/default
+     * Đặt địa chỉ làm mặc định.
+     */
+    @Patch('me/address/:id/default')
+    @UseGuards(JwtAuthGuard)
+    async setDefaultAddress(@Req() req, @Param('id', ParseIntPipe) id: number) {
+        return this.usersService.setDefaultAddress(req.user.id, id);
     }
 }

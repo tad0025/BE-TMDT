@@ -69,25 +69,28 @@ export class UpdateAddressDto {
     @IsOptional()
     phoneNumber?: string;
 
-    @IsString()
+    @Transform(({ value }) => Number(value))
+    @IsNumber()
     @IsOptional()
-    provinceCode?: string;
+    provinceCode?: number;
 
     @IsString()
     @IsOptional()
     provinceName?: string;
 
-    @IsString()
+    @Transform(({ value }) => Number(value))
+    @IsNumber()
     @IsOptional()
-    districtCode?: string;
+    districtCode?: number;
 
     @IsString()
     @IsOptional()
     districtName?: string;
 
-    @IsString()
+    @Transform(({ value }) => Number(value))
+    @IsNumber()
     @IsOptional()
-    wardCode?: string;
+    wardCode?: number;
 
     @IsString()
     @IsOptional()
