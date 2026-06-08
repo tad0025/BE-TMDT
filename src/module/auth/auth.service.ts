@@ -53,7 +53,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName || '',
         role: user.role,
-        avatarUrl: user.avatarUrl || ''
+        avatarUrl: user.avatarUrl || 'https://ui-avatars.com/api/?name=User'
       }
     });
   }
@@ -111,7 +111,7 @@ export class AuthService {
         email: savedUser.email,
         fullName: savedUser.fullName || '',
         role: savedUser.role,
-        avatarUrl: savedUser.avatarUrl || ''
+        avatarUrl: savedUser.avatarUrl || 'https://ui-avatars.com/api/?name=User'
       }
     });
   }

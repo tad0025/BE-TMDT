@@ -137,7 +137,13 @@ export class DashboardService {
             trend: conversionTrend.trend,
         };
 
-        return { totalRevenue, totalOrders, conversionRate };
+        const returningUserRate: KpiMetric = {
+            value: 0,
+            changePercent: 0,
+            trend: 'stable',
+        };
+
+        return { totalRevenue, totalOrders, conversionRate, returningUserRate };
     }
 
 
