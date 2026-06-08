@@ -21,4 +21,7 @@ export class Review {
 
   @ManyToOne(() => Product, { onDelete: 'CASCADE' })
   product: Product;
+
+  @Column({ nullable: true })
+  orderItemId: string;
 }

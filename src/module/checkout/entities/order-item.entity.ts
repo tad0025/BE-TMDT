@@ -38,4 +38,7 @@ export class OrderItem {
 
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   discountPercentage: number;
+
+  @Column({ type: 'boolean', default: false })
+  isReviewed: boolean;
 }
