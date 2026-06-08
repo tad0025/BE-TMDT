@@ -5,6 +5,10 @@ import { Order } from '../checkout/entities/order.entity';
 import { OrderItem } from '../checkout/entities/order-item.entity';
 import { OrderListItemDto, GetOrdersFilterDto, UpdateOrderStatusDto, OrderDetailDto, OrderDetailProductItemDto, OrderStatusHistoryDto, UserUpdateOrderStatusDto } from './dto/orders.dto';
 import { EOrderStatus } from '../checkout/enums/EOrderStatus.enum';
+import { MailService } from '../mails/mail.service';
+import { User } from '../users/entities/user.entity';
+import { EPaymentMethod } from '../checkout/enums/EPaymentMethod.enum';
+import { EPaymentStatus } from '../checkout/enums/EPaymentStatus.enum';
 
 @Injectable()
 export class OrdersService {
@@ -13,6 +17,9 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly mailService: MailService,
   ) { }
 
 
@@ -100,15 +107,15 @@ export class OrdersService {
   private mapToOrderDetailDto(order: Order): OrderDetailDto {
     const snapshot: any = order.snapshotAddress || {};
 
-    const statusHistory: OrderStatusHistoryDto[] = Array.isArray(order.statusHistory) 
-      ? order.statusHistory 
+    const statusHistory: OrderStatusHistoryDto[] = Array.isArray(order.statusHistory)
+      ? order.statusHistory
       : [
-          {
-            status: order.status,
-            timestamp: order.createdAt,
-            note: 'Cập nhật trạng thái tự động'
-          }
-        ];
+        {
+          status: order.status,
+          timestamp: order.createdAt,
+          note: 'Cập nhật trạng thái tự động'
+        }
+      ];
 
     const items: OrderDetailProductItemDto[] = (order.items || []).map(item => ({
       orderItemId: item.id,
@@ -160,9 +167,9 @@ export class OrdersService {
   async updateOrderStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<OrderDetailDto> {
     const order = await this.orderRepository.findOne({ where: { id }, relations: ['items', 'address'] });
     if (!order) throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${id}`);
-    
+
     order.status = updateDto.status;
-    
+
     if (updateDto.note) {
       order.note = updateDto.note;
     }
@@ -204,9 +211,95 @@ export class OrdersService {
     });
 
     order.statusHistory = history;
+    if (updateDto.status === EOrderStatus.SUCCESS) {
+      order.paymentStatus = EPaymentStatus.PAID;
+    }
     const saved = await this.orderRepository.save(order);
-    
+
+    let newStatusStr = '';
+    switch (updateDto.status) {
+      case EOrderStatus.PREPARING: newStatusStr = 'Đơn hàng đang được chuẩn bị'; break;
+      case EOrderStatus.SHIPPING: newStatusStr = 'Đơn hàng đang được giao, vui lòng chú ý điện thoại'; break;
+      case EOrderStatus.DELIVERED: newStatusStr = 'Giao hàng thành công'; break;
+      case EOrderStatus.SUCCESS: newStatusStr = 'Đơn hàng đã hoàn tất'; break;
+      case EOrderStatus.CANCELLED: newStatusStr = 'Đơn hàng của bạn đã bị hủy'; break;
+      case EOrderStatus.RETURNED: newStatusStr = 'Yêu cầu trả hàng/hoàn tiền'; break;
+      default: newStatusStr = 'Đã cập nhật'; break;
+    }
+    this.sendStatusUpdateEmail(saved, newStatusStr, updateDto.status === EOrderStatus.CANCELLED ? updateDto.note : undefined);
+
+    /**
+     * Send billing if order is COD and delivery success
+     */
+    if (updateDto.status === EOrderStatus.SUCCESS && saved.paymentMethod === EPaymentMethod.COD) {
+      console.log('Send billing email to user');
+      this.sendBillingEmail(saved);
+    }
+
     return this.mapToOrderDetailDto(saved);
+  }
+
+  /**
+   * Send email when update order status
+   */
+  private async sendStatusUpdateEmail(order: Order, newStatusStr: string, cancelReason?: string) {
+    const user = await this.userRepository.findOne({ where: { id: order.userId } });
+    if (!user) return;
+
+    let snapshotAddress: any = order.snapshotAddress;
+    if (typeof snapshotAddress === 'string') {
+      try { snapshotAddress = JSON.parse(snapshotAddress); } catch (e) { }
+    }
+
+    const orderItems = order.items?.map(item => ({
+      productName: item.productName,
+      productImageUrl: item.productImageUrl,
+      price: item.price,
+      quantity: item.quantity
+    })) || [];
+
+    this.mailService.sendOrderStatusUpdateEmail(user.email, {
+      orderCode: order.id,
+      customerName: snapshotAddress?.fullName || user.fullName,
+      newStatus: newStatusStr,
+      cancelReason,
+      updatedAt: new Date().toLocaleString('vi-VN'),
+      orderItems
+    });
+  }
+
+  private async sendBillingEmail(order: Order) {
+    const user = await this.userRepository.findOne({ where: { id: order.userId } });
+    if (!user) return;
+
+    let snapshotAddress: any = order.snapshotAddress;
+    if (typeof snapshotAddress === 'string') {
+      try { snapshotAddress = JSON.parse(snapshotAddress); } catch (e) { }
+    }
+
+    const orderItems = order.items?.map(item => ({
+      productName: item.productName,
+      productImageUrl: item.productImageUrl,
+      price: item.price,
+      quantity: item.quantity,
+      originalPrice: item.originalPrice,
+      discountPercentage: item.discountPercentage,
+      totalAmount: item.price * item.quantity
+    })) || [];
+
+    this.mailService.sendBillingEmail(user.email, {
+      orderCode: order.id,
+      customerName: snapshotAddress?.fullName || user.fullName,
+      customerEmail: user.email,
+      orderItems,
+      subTotal: order.subTotal,
+      shippingFee: order.shippingFee,
+      discount: 0,
+      total: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: 'Đã thanh toán (Thu hộ)',
+      createdAt: order.createdAt.toLocaleString('vi-VN')
+    });
   }
 
   // --- USER TRACKING METHODS ---
@@ -292,7 +385,7 @@ export class OrdersService {
     statuses.forEach(item => {
       const statusKey = item.status.toLowerCase();
       const count = Number(item.count);
-      
+
       if (statusKey === 'pending') result.pending += count;
       if (statusKey === 'preparing') result.preparing += count;
       if (statusKey === 'shipping') result.shipping += count;
@@ -326,7 +419,7 @@ export class OrdersService {
     }
 
     order.status = updateDto.newStatus;
-    
+
     if (updateDto.newStatus === EOrderStatus.CANCELLED) {
       order.cancelReason = updateDto.note || '';
     } else if (updateDto.newStatus === EOrderStatus.RETURNED) {
@@ -349,7 +442,10 @@ export class OrdersService {
 
     order.statusHistory = history;
     const saved = await this.orderRepository.save(order);
-    
+
+    let newStatusStr = updateDto.newStatus === EOrderStatus.CANCELLED ? 'Đã bị hủy' : 'Yêu cầu trả hàng/hoàn tiền';
+    this.sendStatusUpdateEmail(saved, newStatusStr, updateDto.newStatus === EOrderStatus.CANCELLED ? updateDto.note : undefined);
+
     return this.mapToOrderDetailDto(saved);
   }
 }
