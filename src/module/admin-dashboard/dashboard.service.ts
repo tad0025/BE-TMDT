@@ -93,15 +93,6 @@ export class DashboardService {
         const previousRevenue = previousOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
         const previousOrderCount = previousOrders.length;
 
-        const currentUsers = new Set(currentOrders.map((o) => o.userId));
-        const previousUsers = new Set(previousOrders.map((o) => o.userId));
-
-        const returningUsers = [...currentUsers].filter((u) => previousUsers.has(u));
-        const currentReturningRate = currentUsers.size > 0
-            ? Math.round((returningUsers.length / currentUsers.size) * 100 * 10) / 10
-            : 0;
-
-        const previousReturningRate = 0;
 
         const totalCurrentOrders = await this.orderRepo
             .createQueryBuilder('o')
@@ -127,7 +118,6 @@ export class DashboardService {
         const revenueTrend = this.calcTrend(currentRevenue, previousRevenue);
         const orderTrend = this.calcTrend(currentOrderCount, previousOrderCount);
         const conversionTrend = this.calcTrend(currentConversionRate, previousConversionRate);
-        const returningTrend = this.calcTrend(currentReturningRate, previousReturningRate);
 
         const totalRevenue: KpiMetric = {
             value: currentRevenue,
@@ -147,13 +137,7 @@ export class DashboardService {
             trend: conversionTrend.trend,
         };
 
-        const returningUserRate: KpiMetric = {
-            value: currentReturningRate,
-            changePercent: returningTrend.changePercent,
-            trend: returningTrend.trend,
-        };
-
-        return { totalRevenue, totalOrders, conversionRate, returningUserRate };
+        return { totalRevenue, totalOrders, conversionRate };
     }
 
 

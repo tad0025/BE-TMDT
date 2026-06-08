@@ -198,4 +198,27 @@ export class UsersService {
 
         return new ApiResponse(true, 'Xóa địa chỉ thành công', null);
     }
+
+    /**
+     * Đặt một địa chỉ làm mặc định.
+     */
+    async setDefaultAddress(userId: string, addressId: number): Promise<ApiResponse<null>> {
+        const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
+        if (!address) {
+            throw new CustomException(HttpStatus.NOT_FOUND, 'ADDRESS_NOT_FOUND', 'Không tìm thấy địa chỉ');
+        }
+
+        if (address.isDefault) {
+            return new ApiResponse(true, 'Địa chỉ này đã là mặc định', null);
+        }
+
+        // Bỏ default của tất cả địa chỉ hiện có
+        await this.addressRepository.update({ userId, isDefault: true }, { isDefault: false });
+
+        // Set default cho địa chỉ được chọn
+        address.isDefault = true;
+        await this.addressRepository.save(address);
+
+        return new ApiResponse(true, 'Đã đặt địa chỉ mặc định', null);
+    }
 }
