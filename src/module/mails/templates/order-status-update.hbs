@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cập nhật trạng thái đơn hàng #684BF8C2</title>
+    <title>Cập nhật trạng thái đơn hàng #{{orderCode}}</title>
     <style>
         /* ── Reset & Base ────────────────────────────────── */
         *,
@@ -256,7 +256,7 @@
             </div>
             <div class="invoice-meta">
                 <div class="label">Mã đơn hàng</div>
-                <div class="invoice-number">#684BF8C2</div>
+                <div class="invoice-number">#{{orderCode}}</div>
             </div>
         </div>
 
@@ -264,9 +264,11 @@
 
             <div class="status-alert alert-shipping">
                 <div class="status-content">
-                    <h2>Đơn hàng đang được giao!</h2>
-                    <p>Đơn hàng của bạn đang trên đường vận chuyển, vui lòng chú ý điện thoại để nhận hàng từ shipper
-                        nhé.</p>
+                    <h2>{{newStatus}}!</h2>
+                    <p>Cập nhật mới nhất về đơn hàng của bạn lúc {{updatedAt}}.</p>
+                    {{#if cancelReason}}
+                    <p><strong>Lý do hủy:</strong> {{cancelReason}}</p>
+                    {{/if}}
                 </div>
             </div>
 
@@ -280,33 +282,21 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {{#each orderItems}}
                     <tr>
                         <td>
                             <div class="product-cell">
-                                <img class="product-img" src="https://picsum.photos/seed/craft1/80/80"
-                                    alt="Bình gốm sứ" />
-                                <div class="product-name">Bình gốm sứ thủ công Bát Tràng</div>
+                                <img class="product-img" src="{{this.productImageUrl}}"
+                                    alt="{{this.productName}}" />
+                                <div class="product-name">{{this.productName}}</div>
                             </div>
                         </td>
-                        <td style="text-align:center;font-weight:600;">2</td>
+                        <td style="text-align:center;font-weight:600;">{{this.quantity}}</td>
                         <td>
-                            <div class="price-sale">280.000 ₫</div>
+                            <div class="price-sale">{{this.price}} ₫</div>
                         </td>
                     </tr>
-
-                    <tr>
-                        <td>
-                            <div class="product-cell">
-                                <img class="product-img" src="https://picsum.photos/seed/craft2/80/80"
-                                    alt="Tranh sơn mài" />
-                                <div class="product-name">Tranh sơn mài phong cảnh làng quê</div>
-                            </div>
-                        </td>
-                        <td style="text-align:center;font-weight:600;">1</td>
-                        <td>
-                            <div class="price-sale">450.000 ₫</div>
-                        </td>
-                    </tr>
+                    {{/each}}
                 </tbody>
             </table>
 

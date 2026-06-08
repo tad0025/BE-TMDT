@@ -24,6 +24,8 @@ import { MomoService } from './services/momo.service';
 import { VnpayService } from './services/vnpay.service';
 import { PaypalService } from './services/paypal.service';
 import { CartItem } from '../cart/entities/cart-item.entity';
+import { MailService } from '../mails/mail.service';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class CheckoutService {
@@ -38,10 +40,13 @@ export class CheckoutService {
     private addressRepository: Repository<Address>,
     @InjectRepository(CartItem)
     private cartItemRepository: Repository<CartItem>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private shippingService: ShippingService,
     private momoService: MomoService,
     private vnpayService: VnpayService,
     private paypalService: PaypalService,
+    private mailService: MailService,
   ) { }
 
   private mapAddressToDto(address: Address): AddressResponseDto {
@@ -250,6 +255,17 @@ export class CheckoutService {
     // For COD, the order is complete, clear items from cart immediately
     await this.clearPurchasedItemsFromCart(userId, productIds);
 
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user) {
+      this.mailService.sendOrderStatusUpdateEmail(user.email, {
+        orderCode: order.id,
+        customerName: address.fullName,
+        newStatus: 'Đơn hàng đang chờ được xử lý',
+        updatedAt: order.createdAt.toLocaleString('vi-VN'),
+        orderItems: validOrderItems
+      });
+    }
+
     return { orderId, payUrl: null, paymentRequired: false };
   }
 
@@ -264,6 +280,46 @@ export class CheckoutService {
     if (items.length > 0) {
       await this.cartItemRepository.remove(items);
     }
+  }
+
+  private async sendOnlinePaymentBillingEmail(orderId: string) {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['items', 'items.product'],
+    });
+    if (!order) return;
+
+    const user = await this.userRepository.findOne({ where: { id: order.userId } });
+    if (!user) return;
+
+    let snapshotAddress: any = order.snapshotAddress;
+    if (typeof snapshotAddress === 'string') {
+      try { snapshotAddress = JSON.parse(snapshotAddress); } catch (e) { }
+    }
+
+    const orderItems = order.items.map(item => ({
+      productName: item.productName,
+      productImageUrl: item.productImageUrl,
+      price: item.price,
+      quantity: item.quantity,
+      originalPrice: item.originalPrice,
+      discountPercentage: item.discountPercentage,
+      totalAmount: item.price * item.quantity
+    }));
+
+    this.mailService.sendBillingEmail(user.email, {
+      orderCode: order.id,
+      customerName: snapshotAddress?.fullName || user.fullName,
+      customerEmail: user.email,
+      orderItems,
+      subTotal: order.subTotal,
+      shippingFee: order.shippingFee,
+      discount: 0,
+      total: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: 'Đã thanh toán',
+      createdAt: order.createdAt.toLocaleString('vi-VN')
+    });
   }
 
   async processMoMoIPN(ipnData: any): Promise<boolean> {
@@ -282,6 +338,7 @@ export class CheckoutService {
         const orderItems = await this.orderItemRepository.find({ where: { orderId } });
         const productIds = orderItems.map(item => item.productId);
         await this.clearPurchasedItemsFromCart(order.userId, productIds);
+        this.sendOnlinePaymentBillingEmail(orderId);
       }
     }
 
@@ -309,6 +366,7 @@ export class CheckoutService {
       const orderItems = await this.orderItemRepository.find({ where: { orderId } });
       const productIds = orderItems.map(item => item.productId);
       await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      this.sendOnlinePaymentBillingEmail(orderId);
     } else {
       order.paymentStatus = EPaymentStatus.FAILED;
       await this.orderRepository.save(order);
@@ -324,7 +382,7 @@ export class CheckoutService {
     if (order.paymentStatus === EPaymentStatus.PAID) return true;
 
     const isSuccess = await this.paypalService.captureOrder(token);
-    
+
     if (isSuccess) {
       order.paymentStatus = EPaymentStatus.PAID;
       await this.orderRepository.save(order);
@@ -332,6 +390,7 @@ export class CheckoutService {
       const orderItems = await this.orderItemRepository.find({ where: { orderId } });
       const productIds = orderItems.map(item => item.productId);
       await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      this.sendOnlinePaymentBillingEmail(orderId);
       return true;
     } else {
       order.paymentStatus = EPaymentStatus.FAILED;

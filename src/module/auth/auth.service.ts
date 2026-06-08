@@ -11,6 +11,7 @@ import { SendOtpDto } from './dto/otp.dto';
 import { RegisterDto } from './dto/register.dto';
 import { EUserRole } from '../users/enums/user.enum';
 import { MailerService } from '@nestjs-modules/mailer';
+import { MailService } from '../mails/mail.service';
 import { ResetPasswordDto } from './dto/password.dto';
 import { OtpPurpose } from './enums/otp.enum';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -23,7 +24,7 @@ export class AuthService {
   constructor(
     private jwtService: JwtService,
     @InjectRepository(User) private userRepository: Repository<User>,
-    private readonly mailerService: MailerService,
+    private readonly mailService: MailService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) { }
 
@@ -135,37 +136,9 @@ export class AuthService {
     }
 
     try {
-      const subject = dto.purpose === OtpPurpose.REGISTER ? 'Mã OTP đăng ký - MarketNest' : 'Mã OTP quên mật khẩu - MarketNest';
-      const text = `Chào bạn, đây là mã xác thực để truy cập vào MarketNest: ${generatedOtp}. Mã này có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai.`;
-      const html = `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #eeeeee; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-          <div style="background-color: #2d89ef; padding: 20px; text-align: center;">
-            <h2 style="color: #ffffff; margin: 0; font-size: 24px;">Xác thực MarketNest</h2>
-          </div>
-          
-          <div style="padding: 30px; line-height: 1.6; color: #333333; text-align: center;">
-            <p style="margin-top: 0; font-size: 16px;">Chào bạn, đây là mã xác thực để truy cập vào MarketNest:</p>
-            
-            <div style="background-color: #f0f7ff; border: 1px dashed #2d89ef; padding: 15px; margin: 20px 0; border-radius: 8px;">
-              <span style="font-size: 32px; font-weight: bold; color: #2d89ef; letter-spacing: 5px;">${generatedOtp}</span>
-            </div>
-            
-            <p style="font-size: 14px; color: #777777; margin-bottom: 0;">
-              Mã này có hiệu lực trong <b style="color: #333;">10 phút</b>.<br>
-              Vui lòng không chia sẻ mã này cho bất kỳ ai.
-            </p>
-          </div>
-          
-          <div style="background-color: #fafafa; padding: 15px; text-align: center; border-top: 1px solid #eeeeee;">
-            <span style="font-size: 12px; color: #aaaaaa;">&copy; 2026 MarketNest Team. All rights reserved.</span>
-          </div>
-        </div>
-      `;
-      await this.mailerService.sendMail({
-        to: email,
-        subject: subject,
-        text: text,
-        html: html,
+      this.mailService.sendOtpEmail(email, {
+        generatedOtp,
+        isRegister: dto.purpose === OtpPurpose.REGISTER
       });
     } catch (error) {
       console.error('Mail send error:', error);
