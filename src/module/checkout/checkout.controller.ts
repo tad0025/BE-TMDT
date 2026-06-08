@@ -11,10 +11,9 @@ export class CheckoutController {
   @UseGuards(JwtAuthGuard)
   @Post('orders/prepare')
   async prepareCheckout(
-    @Body() items: { productId: string; quantity: number }[],
+    @Body() dto: PrepareCheckoutDto,
     @Req() req: any,
   ) {
-    const dto: PrepareCheckoutDto = { items };
     const data = await this.checkoutService.prepareCheckout(dto, req.user.id);
     return { success: true, message: 'Tính toán đơn hàng thành công', data };
   }
