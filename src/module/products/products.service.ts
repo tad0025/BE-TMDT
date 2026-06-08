@@ -123,8 +123,14 @@ export class ProductsService {
       originalPrice: product.originalPrice ? Number(product.originalPrice) : null,
       discountPercentage: product.discountPercentage,
       rating: product.rating,
+      stock: Number(product.stock),
+      soldCount: Number(product.soldCount),
       images: safeParseArray(product.images),
       materials: safeParseArray(product.materials),
+      dimensions: safeParseArray(product.dimensions),
+      weight: product.weight ? Number(product.weight) : undefined,
+      careInstructions: product.careInstructions,
+      categoryName: product.category?.name || 'Chưa phân loại',
     }));
 
     const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', formattedProducts);
@@ -173,8 +179,12 @@ export class ProductsService {
 
     return {
       ...product,
+      stock: Number(product.stock),
+      soldCount: Number(product.soldCount),
+      weight: product.weight ? Number(product.weight) : undefined,
       images: safeParseArray(product.images),
       materials: safeParseArray(product.materials),
+      dimensions: safeParseArray(product.dimensions),
       categoryName: product.category?.name || 'Chưa phân loại',
       categoryId: product.category?.id,
       isFavorite,
