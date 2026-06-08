@@ -209,6 +209,11 @@ export class CheckoutService {
       paymentStatus: EPaymentStatus.PENDING,
       paymentMethod: dto.paymentMethod,
       snapshotAddress: this.mapAddressToDto(address),
+      statusHistory: [{
+        status: EOrderStatus.PENDING,
+        timestamp: new Date(),
+        note: 'Đơn hàng đã được tạo'
+      }]
     });
     order = await this.orderRepository.save(order);
     const orderId = order.id;

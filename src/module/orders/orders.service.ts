@@ -100,13 +100,15 @@ export class OrdersService {
   private mapToOrderDetailDto(order: Order): OrderDetailDto {
     const snapshot: any = order.snapshotAddress || {};
 
-    const statusHistory: OrderStatusHistoryDto[] = [
-      {
-        status: order.status,
-        timestamp: order.createdAt,
-        note: 'Cập nhật trạng thái tự động'
-      }
-    ];
+    const statusHistory: OrderStatusHistoryDto[] = Array.isArray(order.statusHistory) 
+      ? order.statusHistory 
+      : [
+          {
+            status: order.status,
+            timestamp: order.createdAt,
+            note: 'Cập nhật trạng thái tự động'
+          }
+        ];
 
     const items: OrderDetailProductItemDto[] = (order.items || []).map(item => ({
       productId: item.productId,
@@ -136,7 +138,7 @@ export class OrdersService {
       totalAmount: Number(order.totalAmount),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
-      cancelReason: ''
+      cancelReason: order.cancelReason || order.returnReason || ''
     };
   }
 
@@ -156,14 +158,53 @@ export class OrdersService {
   async updateOrderStatus(id: string, updateDto: UpdateOrderStatusDto): Promise<OrderDetailDto> {
     const order = await this.orderRepository.findOne({ where: { id }, relations: ['items', 'address'] });
     if (!order) throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${id}`);
+    
     order.status = updateDto.status;
-    const saved = await this.orderRepository.save(order);
-    // Reload với relations đầy đủ sau khi save
-    const reloaded = await this.orderRepository.findOne({
-      where: { id: saved.id },
-      relations: ['items', 'address']
+    
+    if (updateDto.note) {
+      order.note = updateDto.note;
+    }
+
+    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [
+      {
+        status: EOrderStatus.PENDING,
+        timestamp: order.createdAt,
+        note: 'Đơn hàng đã được tạo'
+      }
+    ];
+
+    let defaultNote = 'Admin cập nhật trạng thái';
+    switch (updateDto.status) {
+      case EOrderStatus.PREPARING:
+        defaultNote = 'Shop đang chuẩn bị hàng';
+        break;
+      case EOrderStatus.SHIPPING:
+        defaultNote = 'Đơn hàng đang được giao';
+        break;
+      case EOrderStatus.DELIVERED:
+        defaultNote = 'Đơn hàng đã được giao thành công';
+        break;
+      case EOrderStatus.SUCCESS:
+        defaultNote = 'Đơn hàng đã hoàn tất';
+        break;
+      case EOrderStatus.CANCELLED:
+        defaultNote = 'Đơn hàng đã bị hủy';
+        break;
+      case EOrderStatus.RETURNED:
+        defaultNote = 'Yêu cầu trả hàng/hoàn tiền';
+        break;
+    }
+
+    history.push({
+      status: updateDto.status,
+      timestamp: new Date(),
+      note: updateDto.note || defaultNote
     });
-    return this.mapToOrderDetailDto(reloaded!);
+
+    order.statusHistory = history;
+    const saved = await this.orderRepository.save(order);
+    
+    return this.mapToOrderDetailDto(saved);
   }
 
   // --- USER TRACKING METHODS ---
@@ -283,17 +324,30 @@ export class OrdersService {
     }
 
     order.status = updateDto.newStatus;
-    const saved = await this.orderRepository.save(order);
     
-    const dto = this.mapToOrderDetailDto(saved);
-    dto.cancelReason = updateDto.note || '';
-    
-    dto.statusHistory.push({
-      status: saved.status,
+    if (updateDto.newStatus === EOrderStatus.CANCELLED) {
+      order.cancelReason = updateDto.note || '';
+    } else if (updateDto.newStatus === EOrderStatus.RETURNED) {
+      order.returnReason = updateDto.note || '';
+    }
+
+    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [
+      {
+        status: EOrderStatus.PENDING,
+        timestamp: order.createdAt,
+        note: 'Đơn hàng đã được tạo'
+      }
+    ];
+
+    history.push({
+      status: updateDto.newStatus,
       timestamp: new Date(),
-      note: updateDto.note
+      note: updateDto.note || 'Khách hàng cập nhật'
     });
 
-    return dto;
+    order.statusHistory = history;
+    const saved = await this.orderRepository.save(order);
+    
+    return this.mapToOrderDetailDto(saved);
   }
 }

@@ -41,6 +41,18 @@ export class Order {
   @Column({ type: 'json', nullable: true })
   snapshotAddress: object;  // Snapshot của Address tại thời điểm đặt hàng
 
+  @Column({ nullable: true })
+  cancelReason: string;
+
+  @Column({ nullable: true })
+  returnReason: string;
+
+  @Column({ nullable: true })
+  note: string;
+
+  @Column({ type: 'json', nullable: true })
+  statusHistory: any;
+
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   items: OrderItem[];
 
