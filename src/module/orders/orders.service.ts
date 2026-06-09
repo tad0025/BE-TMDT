@@ -9,6 +9,7 @@ import { MailService } from '../mails/mail.service';
 import { User } from '../users/entities/user.entity';
 import { EPaymentMethod } from '../checkout/enums/EPaymentMethod.enum';
 import { EPaymentStatus } from '../checkout/enums/EPaymentStatus.enum';
+import { CheckoutService } from '../checkout/checkout.service';
 
 @Injectable()
 export class OrdersService {
@@ -20,6 +21,7 @@ export class OrdersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly mailService: MailService,
+    private readonly checkoutService: CheckoutService,
   ) { }
 
 
@@ -143,7 +145,13 @@ export class OrdersService {
       items,
       subTotal: Number(order.subTotal),
       shippingFee: Number(order.shippingFee),
-      discountAmount: 0,
+      discountAmount: Number(order.discountAmount) || 0,
+      shippingDiscountAmount: Number(order.shippingDiscountAmount) || 0,
+      vouchers: order.vouchers?.map((v: any) => ({
+        voucherCode: v.voucherCode,
+        discountAmount: Number(v.discountAmount),
+        voucherSnapshot: v.voucherSnapshot
+      })) || [],
       totalAmount: Number(order.totalAmount),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
@@ -154,7 +162,7 @@ export class OrdersService {
   async getOrderDetailById(id: string): Promise<OrderDetailDto> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['items', 'address']
+      relations: ['items', 'address', 'vouchers']
     });
 
     if (!order) {
@@ -215,6 +223,10 @@ export class OrdersService {
       order.paymentStatus = EPaymentStatus.PAID;
     }
     const saved = await this.orderRepository.save(order);
+
+    if (updateDto.status === EOrderStatus.CANCELLED || updateDto.status === EOrderStatus.RETURNED) {
+      await this.checkoutService.rollbackVouchersForOrder(order.id);
+    }
 
     let newStatusStr = '';
     switch (updateDto.status) {
@@ -400,7 +412,7 @@ export class OrdersService {
   async getTrackingOrderDetail(userId: string, id: string): Promise<OrderDetailDto> {
     const order = await this.orderRepository.findOne({
       where: { id, userId },
-      relations: ['items', 'address']
+      relations: ['items', 'address', 'vouchers']
     });
 
     if (!order) {
@@ -442,6 +454,10 @@ export class OrdersService {
 
     order.statusHistory = history;
     const saved = await this.orderRepository.save(order);
+
+    if (updateDto.newStatus === EOrderStatus.CANCELLED || updateDto.newStatus === EOrderStatus.RETURNED) {
+      await this.checkoutService.rollbackVouchersForOrder(order.id);
+    }
 
     let newStatusStr = updateDto.newStatus === EOrderStatus.CANCELLED ? 'Đã bị hủy' : 'Yêu cầu trả hàng/hoàn tiền';
     this.sendStatusUpdateEmail(saved, newStatusStr, updateDto.newStatus === EOrderStatus.CANCELLED ? updateDto.note : undefined);

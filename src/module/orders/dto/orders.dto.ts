@@ -63,6 +63,12 @@ export class OrderDetailProductItemDto {
   isReviewed?: boolean;
 }
 
+export class OrderDetailVoucherDto {
+  voucherCode: string;
+  discountAmount: number;
+  voucherSnapshot: any;
+}
+
 export class OrderDetailDto {
   id: string;
   createdAt: Date;
@@ -77,6 +83,8 @@ export class OrderDetailDto {
   subTotal: number;
   shippingFee: number;
   discountAmount?: number;
+  shippingDiscountAmount?: number;
+  vouchers?: OrderDetailVoucherDto[];
   totalAmount: number;
   paymentMethod: EPaymentMethod;
   paymentStatus: EPaymentStatus;

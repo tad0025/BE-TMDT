@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { OrderItem } from './order-item.entity';
+import { OrderVoucher } from './order-voucher.entity';
 import { EOrderStatus } from '../../checkout/enums/EOrderStatus.enum';
 import { EPaymentStatus } from '../../checkout/enums/EPaymentStatus.enum';
 import { EPaymentMethod } from '../../checkout/enums/EPaymentMethod.enum';
@@ -38,6 +39,12 @@ export class Order {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   shippingFee: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  discountAmount: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  shippingDiscountAmount: number;
+
   @Column({ type: 'json', nullable: true })
   snapshotAddress: object;  // Snapshot của Address tại thời điểm đặt hàng
 
@@ -55,6 +62,9 @@ export class Order {
 
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   items: OrderItem[];
+
+  @OneToMany(() => OrderVoucher, (orderVoucher) => orderVoucher.order, { cascade: true })
+  vouchers: OrderVoucher[];
 
   @CreateDateColumn()
   createdAt: Date;
