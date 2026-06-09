@@ -4,10 +4,11 @@ import { ReviewsController, ProductReviewsController, OrderReviewsController } f
 import { ReviewsService } from './reviews.service';
 import { Review } from './entities/review.entity';
 import { OrderItem } from '../checkout/entities/order-item.entity';
+import { Product } from '../products/entities/product.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Review, OrderItem]),
+    TypeOrmModule.forFeature([Review, OrderItem, Product]),
   ],
   controllers: [ReviewsController, ProductReviewsController, OrderReviewsController],
   providers: [ReviewsService],

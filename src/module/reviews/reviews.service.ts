@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { OrderItem } from '../checkout/entities/order-item.entity';
+import { Product } from '../products/entities/product.entity';
 import { CreateReviewRequestDto } from './dto/reviews.dto';
 
 @Injectable()
@@ -12,9 +13,12 @@ export class ReviewsService {
     private readonly reviewRepository: Repository<Review>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) {}
 
   async getReviewsByProductId(productId: string) {
+    const product = await this.productRepository.findOne({ where: { id: productId }, select: ['rating'] });
     const reviews = await this.reviewRepository.find({
       where: { product: { id: productId } },
       relations: ['user'],
@@ -22,13 +26,11 @@ export class ReviewsService {
     });
 
     const totalReview = reviews.length;
-    const averageRating = totalReview > 0 
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReview 
-      : 0;
+    const averageRating = product ? Number(product.rating.toFixed(1)) : 0;
 
     return {
       totalReview,
-      averageRating: Number(averageRating.toFixed(1)),
+      averageRating,
       reviews: reviews.map(r => ({
         reviewId: r.id,
         userId: r.user?.id || '',
@@ -68,6 +70,7 @@ export class ReviewsService {
 
   async createReviews(userId: string, request: CreateReviewRequestDto) {
     let submittedCount = 0;
+    const productIdsToUpdate = new Set<string>();
     
     for (const item of request.reviews) {
       const orderItem = await this.orderItemRepository.findOne({ where: { id: item.orderItemId } });
@@ -84,7 +87,21 @@ export class ReviewsService {
       
       orderItem.isReviewed = true;
       await this.orderItemRepository.save(orderItem);
+      
+      productIdsToUpdate.add(orderItem.productId);
       submittedCount++;
+    }
+
+    for (const productId of productIdsToUpdate) {
+      const result = await this.reviewRepository
+        .createQueryBuilder('review')
+        .innerJoin('review.product', 'product')
+        .where('product.id = :productId', { productId })
+        .select('AVG(review.rating)', 'avgRating')
+        .getRawOne();
+      
+      const avg = result && result.avgRating ? Number(Number(result.avgRating).toFixed(1)) : 0;
+      await this.productRepository.update(productId, { rating: avg });
     }
 
     return { submittedCount };
