@@ -46,7 +46,7 @@ export class Order {
   shippingDiscountAmount: number;
 
   @Column({ type: 'json', nullable: true })
-  snapshotAddress: object;  // Snapshot của Address tại thời điểm đặt hàng
+  snapshotAddress: object;  
 
   @Column({ nullable: true })
   cancelReason: string;

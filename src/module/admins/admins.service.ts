@@ -60,7 +60,7 @@ export class AdminsService implements OnApplicationBootstrap {
       
       this.logger.log('Default admin created successfully.');
     } else {
-      // Make sure the admin profile exists
+      
       const adminProfile = await this.adminRepository.findOne({ where: { user: { id: adminUser.id } } });
       if (!adminProfile) {
         const newProfile = this.adminRepository.create({

@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus, Logger } from '@nestjs/common';
+import { Injectable, HttpStatus, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -10,10 +10,18 @@ import { Favorite } from './entities/favorite.entity';
 import { Category } from '../categories/entities/category.entity';
 import { GetAllProductDto, CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { MediaService } from '../media/media.service';
+import { OpensearchService } from '../opensearch/opensearch.service';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
   private readonly logger = new Logger(ProductsService.name);
+
+  async onModuleInit() {
+    this.logger.log('Bắt đầu đồng bộ tự động danh sách sản phẩm lên OpenSearch...');
+    this.syncProductsToOpensearch()
+      .then((msg) => this.logger.log(msg))
+      .catch((err) => this.logger.error('Lỗi khi đồng bộ sản phẩm lên OpenSearch:', err.message));
+  }
 
   constructor(
     @InjectRepository(Product)
@@ -23,6 +31,7 @@ export class ProductsService {
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly mediaService: MediaService,
+    private readonly opensearchService: OpensearchService,
   ) { }
 
   async getAllProducts(dto: GetAllProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
@@ -53,20 +62,31 @@ export class ProductsService {
 
     const skip = (page - 1) * pageSize;
 
-    // Debug log để kiểm tra giá trị nhận vào
+    
     console.log('[getAllProducts] categories =', categories, '| type =', typeof categories, '| isArray =', Array.isArray(categories));
     console.log('[getAllProducts] sortBy =', sortBy, '| minPrice =', minPrice, '| maxPrice =', maxPrice);
 
     const qb = this.productsRepository.createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category');
 
-    // Lọc theo danh mục
+    if (dto.search) {
+      const matchedIds = await this.opensearchService.searchProductIds(dto.search);
+      if (matchedIds.length === 0) {
+        
+        const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', []);
+        response.pagination = { page, pageSize, totalItems: 0, totalPages: 0 };
+        return response;
+      }
+      qb.andWhere('product.id IN (:...matchedIds)', { matchedIds });
+    }
+
+    
     if (categories && Array.isArray(categories) && categories.length > 0) {
       qb.andWhere('category.id IN (:...categories)', { categories });
       console.log('[getAllProducts] Applying category filter with:', categories);
     }
 
-    // Lọc theo giá
+    
     const parsedMin = minPrice ? Number(minPrice) : NaN;
     const parsedMax = maxPrice ? Number(maxPrice) : NaN;
     if (!isNaN(parsedMin) && !isNaN(parsedMax)) {
@@ -77,7 +97,7 @@ export class ProductsService {
       qb.andWhere('product.price <= :maxPrice', { maxPrice: parsedMax });
     }
 
-    // Sắp xếp
+    
     switch (sortBy) {
       case EFilterState.PRICE_LOW_TO_HIGH:
         qb.orderBy('product.price', 'ASC');
@@ -144,7 +164,7 @@ export class ProductsService {
     return response;
   }
 
-  // Cần inject thêm Favorite Repository vào constructor nếu chưa có
+  
   async getProductById(id: string, userId?: string) {
     const product = await this.productsRepository.findOne({
       where: { id },
@@ -236,16 +256,19 @@ export class ProductsService {
 
     const saved = await this.productsRepository.save(product);
 
-    // Tự động xóa tag 'tmp' sau khi tạo sản phẩm thành công
-    // FE không cần gọi PATCH /media/confirm riêng
+    
+    
     if (mediaPublicIds && mediaPublicIds.length > 0) {
       try {
         await this.mediaService.confirmUpload(mediaPublicIds);
       } catch (err) {
-        // Không throw — lỗi confirm không được phép huỷ việc lưu sản phẩm
+        
         this.logger.warn(`[createProduct] Could not confirm media for product ${saved.id}: ${err?.message}`);
       }
     }
+
+    // Index vao OpenSearch
+    await this.opensearchService.indexProduct(saved);
 
     return saved;
   }
@@ -279,7 +302,20 @@ export class ProductsService {
       }
     }
 
+    // Cap nhat vao OpenSearch
+    await this.opensearchService.updateProduct(id, saved);
+
     return saved;
+  }
+
+  async syncProductsToOpensearch() {
+    const products = await this.productsRepository.find({ relations: ['category'] });
+    let count = 0;
+    for (const p of products) {
+      await this.opensearchService.indexProduct(p);
+      count++;
+    }
+    return `Đã đồng bộ ${count} sản phẩm lên OpenSearch thành công.`;
   }
 
   async deleteProduct(id: string) {
@@ -289,5 +325,6 @@ export class ProductsService {
     }
 
     await this.productsRepository.remove(product);
+    await this.opensearchService.removeProduct(id);
   }
 }

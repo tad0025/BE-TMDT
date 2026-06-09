@@ -6,9 +6,10 @@ import { Product } from './entities/product.entity';
 import { Favorite } from './entities/favorite.entity';
 import { Category } from '../categories/entities/category.entity';
 import { MediaModule } from '../media/media.module';
+import { OpensearchModule } from '../opensearch/opensearch.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, Favorite, Category]), MediaModule],
+  imports: [TypeOrmModule.forFeature([Product, Favorite, Category]), MediaModule, OpensearchModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

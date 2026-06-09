@@ -57,7 +57,7 @@ export class DashboardService {
         return { currentStart, previousStart };
     }
 
-    /** Tính trend dựa trên giá trị hiện tại và trước đó */
+    
     private calcTrend(current: number, previous: number): { changePercent: number; trend: KpiTrend } {
         if (previous === 0) {
             return { changePercent: current > 0 ? 100 : 0, trend: current > 0 ? 'up' : 'stable' };
@@ -92,7 +92,6 @@ export class DashboardService {
 
         const previousRevenue = previousOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
         const previousOrderCount = previousOrders.length;
-
 
         const totalCurrentOrders = await this.orderRepo
             .createQueryBuilder('o')
@@ -145,7 +144,6 @@ export class DashboardService {
 
         return { totalRevenue, totalOrders, conversionRate, returningUserRate };
     }
-
 
     async getRevenueChart(period: DashboardPeriod): Promise<RevenueDataPoint[]> {
         const { currentStart } = this.getPeriodRange(period);

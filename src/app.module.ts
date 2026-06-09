@@ -19,6 +19,7 @@ import { DashboardModule } from './module/admin-dashboard/dashboard.module';
 import { MediaModule } from './module/media/media.module';
 import { OrdersModule } from './module/orders/orders.module';
 import { VouchersModule } from './module/vouchers/vouchers.module';
+import { OpensearchModule } from './module/opensearch/opensearch.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { VouchersModule } from './module/vouchers/vouchers.module';
     MediaModule,
     OrdersModule,
     VouchersModule,
+    OpensearchModule,
   ],
   controllers: [],
   providers: [

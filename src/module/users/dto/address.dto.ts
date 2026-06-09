@@ -117,8 +117,6 @@ export class UpdateAddressDto {
     isDefault?: boolean;
 }
 
-// ─── Response DTOs ────────────────────────────────────────────────────────────
-
 export class AddressDto {
     id: number;
     fullName: string;

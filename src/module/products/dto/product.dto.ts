@@ -43,6 +43,10 @@ export class GetAllProductDto {
     filters?: ProductFiltersDto;
 
     @IsOptional()
+    @IsString()
+    search?: string;
+
+    @IsOptional()
     @IsEnum(EFilterState)
     'filters[sortBy]'?: EFilterState;
 
@@ -96,11 +100,8 @@ export class CreateProductDto {
     @IsString()
     imageUrl?: string;
 
-    /**
-     * Danh sách public_id của các file đã upload lên Cloudinary (qua Signed Upload).
-     * BE sẽ tự động xóa tag 'tmp' khỏi các file này sau khi tạo sản phẩm thành công.
-     * FE không cần gọi PATCH /media/confirm nữa.
-     */
+    
+
     @IsOptional()
     @IsArray()
     @IsString({ each: true })

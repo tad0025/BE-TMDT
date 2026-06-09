@@ -24,7 +24,7 @@ export class OrderVoucher {
   discountAmount: number;
 
   @Column({ type: 'json' })
-  voucherSnapshot: any; // { code, title, voucher_type, discount_value, max_discount_amount, min_order_value }
+  voucherSnapshot: any; 
 
   @ManyToOne(() => Order, order => order.vouchers, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'orderId' })
