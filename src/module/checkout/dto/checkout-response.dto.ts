@@ -34,6 +34,9 @@ export class PrepareCheckoutResponseDto {
     items: CheckoutItemResponseDto[];
     subTotal: number;
     shippingFee: number;
+    discountAmount: number;
+    shippingDiscountAmount: number;
+    appliedVouchers: { voucherCode: string; voucherType: string; discountValue: number }[];
     totalAmount: number;
     invalidItems: InvalidItemResponseDto[];
 }

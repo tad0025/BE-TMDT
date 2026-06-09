@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, DataSource } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { EOrderStatus } from './enums/EOrderStatus.enum';
@@ -26,6 +26,9 @@ import { PaypalService } from './services/paypal.service';
 import { CartItem } from '../cart/entities/cart-item.entity';
 import { MailService } from '../mails/mail.service';
 import { User } from '../users/entities/user.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { VoucherType, Voucher } from '../vouchers/entities/voucher.entity';
+import { OrderVoucher } from './entities/order-voucher.entity';
 
 @Injectable()
 export class CheckoutService {
@@ -47,6 +50,8 @@ export class CheckoutService {
     private vnpayService: VnpayService,
     private paypalService: PaypalService,
     private mailService: MailService,
+    private vouchersService: VouchersService,
+    private dataSource: DataSource,
   ) { }
 
   private mapAddressToDto(address: Address): AddressResponseDto {
@@ -129,6 +134,62 @@ export class CheckoutService {
       });
     }
 
+    let discountAmount = 0;
+    let shippingDiscountAmount = 0;
+    let validVouchers: Voucher[] = [];
+
+    if (dto.voucherCodes && dto.voucherCodes.length > 0) {
+      let freeshipCount = 0;
+      let nonFreeshipCount = 0;
+
+      for (const code of dto.voucherCodes) {
+        try {
+          const voucher = await this.vouchersService.checkVoucherEligibility(code, userId, subTotal);
+          validVouchers.push(voucher);
+          if (voucher.voucher_type === VoucherType.FREESHIP_CASH || voucher.voucher_type === VoucherType.FREESHIP_PERCENT) {
+            freeshipCount++;
+          } else {
+            nonFreeshipCount++;
+          }
+        } catch (e) {
+          throw new BadRequestException(e.message);
+        }
+      }
+
+      if (freeshipCount > 1) {
+        throw new BadRequestException('Chỉ được áp dụng tối đa 1 mã miễn phí vận chuyển');
+      }
+      if (nonFreeshipCount > 2) {
+        throw new BadRequestException('Chỉ được áp dụng tối đa 2 mã giảm giá sản phẩm');
+      }
+
+      validVouchers.sort((a, b) => {
+        if (a.voucher_type === VoucherType.PERCENT && b.voucher_type === VoucherType.CASH) return -1;
+        if (a.voucher_type === VoucherType.CASH && b.voucher_type === VoucherType.PERCENT) return 1;
+        return 0;
+      });
+
+      let remainingSubTotal = subTotal;
+      for (const v of validVouchers) {
+        if (v.voucher_type === VoucherType.PERCENT) {
+          let discount = (subTotal * Number(v.discount_value)) / 100;
+          if (v.max_discount_amount && discount > Number(v.max_discount_amount)) {
+            discount = Number(v.max_discount_amount);
+          }
+          if (discount > remainingSubTotal) discount = remainingSubTotal;
+          discountAmount += discount;
+          remainingSubTotal -= discount;
+          (v as any)._calculatedDiscount = discount;
+        } else if (v.voucher_type === VoucherType.CASH) {
+          let discount = Number(v.discount_value);
+          if (discount > remainingSubTotal) discount = remainingSubTotal;
+          discountAmount += discount;
+          remainingSubTotal -= discount;
+          (v as any)._calculatedDiscount = discount;
+        }
+      }
+    }
+
     const { boxLength, boxWidth, boxHeight, boxWeight, packingResult } = this.shippingService.calculateOptimalBox(dto.items, productMap);
     if (packingResult) {
       console.log("[prepareCheckout] Kiện hàng tối ưu:", packingResult);
@@ -138,12 +199,54 @@ export class CheckoutService {
       ? await this.shippingService.calcShippingFeeGHN(address.districtCode, address.wardCode.toString(), boxWeight, boxLength, boxWidth, boxHeight)
       : 0;
 
+    const appliedVouchers: { voucherCode: string; voucherType: string; discountValue: number }[] = [];
+
+    for (const v of validVouchers) {
+       if (v.voucher_type === VoucherType.PERCENT || v.voucher_type === VoucherType.CASH) {
+          if ((v as any)._calculatedDiscount > 0) {
+             appliedVouchers.push({
+                voucherCode: v.code,
+                voucherType: v.voucher_type,
+                discountValue: (v as any)._calculatedDiscount
+             });
+          }
+       } else if (v.voucher_type === VoucherType.FREESHIP_PERCENT) {
+          let discount = (shippingFee * Number(v.discount_value)) / 100;
+          if (v.max_discount_amount && discount > Number(v.max_discount_amount)) {
+            discount = Number(v.max_discount_amount);
+          }
+          if (discount > shippingFee - shippingDiscountAmount) discount = shippingFee - shippingDiscountAmount;
+          shippingDiscountAmount += discount;
+          if (discount > 0) {
+             appliedVouchers.push({
+                voucherCode: v.code,
+                voucherType: v.voucher_type,
+                discountValue: discount
+             });
+          }
+       } else if (v.voucher_type === VoucherType.FREESHIP_CASH) {
+          let discount = Number(v.discount_value);
+          if (discount > shippingFee - shippingDiscountAmount) discount = shippingFee - shippingDiscountAmount;
+          shippingDiscountAmount += discount;
+          if (discount > 0) {
+             appliedVouchers.push({
+                voucherCode: v.code,
+                voucherType: v.voucher_type,
+                discountValue: discount
+             });
+          }
+       }
+    }
+
     return {
       address: address ? this.mapAddressToDto(address) : null,
       items: validItems,
       subTotal,
       shippingFee,
-      totalAmount: subTotal + shippingFee,
+      discountAmount,
+      shippingDiscountAmount,
+      appliedVouchers,
+      totalAmount: subTotal - discountAmount + shippingFee - shippingDiscountAmount,
       invalidItems,
     };
   }
@@ -202,40 +305,168 @@ export class CheckoutService {
     }
 
     const shippingFee = await this.shippingService.calcShippingFeeGHN(address.districtCode, address.wardCode.toString(), boxWeight, boxLength, boxWidth, boxHeight);
-    const totalAmount = subTotal + shippingFee;
 
-    let order = this.orderRepository.create({
-      userId,
-      addressId: address.id,
-      subTotal,
-      shippingFee,
-      totalAmount,
-      status: EOrderStatus.PENDING,
-      paymentStatus: EPaymentStatus.PENDING,
-      paymentMethod: dto.paymentMethod,
-      snapshotAddress: this.mapAddressToDto(address),
-      statusHistory: [{
+    let discountAmount = 0;
+    let shippingDiscountAmount = 0;
+    let validVouchers: Voucher[] = [];
+
+    if (dto.voucherCodes && dto.voucherCodes.length > 0) {
+      let freeshipCount = 0;
+      let nonFreeshipCount = 0;
+
+      for (const code of dto.voucherCodes) {
+        try {
+          const voucher = await this.vouchersService.checkVoucherEligibility(code, userId, subTotal);
+          validVouchers.push(voucher);
+          if (voucher.voucher_type === VoucherType.FREESHIP_CASH || voucher.voucher_type === VoucherType.FREESHIP_PERCENT) {
+            freeshipCount++;
+          } else {
+            nonFreeshipCount++;
+          }
+        } catch (e) {
+          throw new BadRequestException(e.message);
+        }
+      }
+
+      if (freeshipCount > 1) {
+        throw new BadRequestException('Chỉ được áp dụng tối đa 1 mã miễn phí vận chuyển');
+      }
+      if (nonFreeshipCount > 2) {
+        throw new BadRequestException('Chỉ được áp dụng tối đa 2 mã giảm giá sản phẩm');
+      }
+
+      validVouchers.sort((a, b) => {
+        if (a.voucher_type === VoucherType.PERCENT && b.voucher_type === VoucherType.CASH) return -1;
+        if (a.voucher_type === VoucherType.CASH && b.voucher_type === VoucherType.PERCENT) return 1;
+        return 0;
+      });
+
+      let remainingSubTotal = subTotal;
+      for (const v of validVouchers) {
+        if (v.voucher_type === VoucherType.PERCENT) {
+          let discount = (subTotal * Number(v.discount_value)) / 100;
+          if (v.max_discount_amount && discount > Number(v.max_discount_amount)) {
+            discount = Number(v.max_discount_amount);
+          }
+          if (discount > remainingSubTotal) discount = remainingSubTotal;
+          discountAmount += discount;
+          remainingSubTotal -= discount;
+          (v as any)._calculatedDiscount = discount;
+        } else if (v.voucher_type === VoucherType.CASH) {
+          let discount = Number(v.discount_value);
+          if (discount > remainingSubTotal) discount = remainingSubTotal;
+          discountAmount += discount;
+          remainingSubTotal -= discount;
+          (v as any)._calculatedDiscount = discount;
+        }
+      }
+
+      for (const v of validVouchers) {
+        if (v.voucher_type === VoucherType.FREESHIP_PERCENT) {
+            let discount = (shippingFee * Number(v.discount_value)) / 100;
+            if (v.max_discount_amount && discount > Number(v.max_discount_amount)) {
+              discount = Number(v.max_discount_amount);
+            }
+            if (discount > shippingFee - shippingDiscountAmount) discount = shippingFee - shippingDiscountAmount;
+            shippingDiscountAmount += discount;
+            (v as any)._calculatedDiscount = discount;
+        } else if (v.voucher_type === VoucherType.FREESHIP_CASH) {
+            let discount = Number(v.discount_value);
+            if (discount > shippingFee - shippingDiscountAmount) discount = shippingFee - shippingDiscountAmount;
+            shippingDiscountAmount += discount;
+            (v as any)._calculatedDiscount = discount;
+        }
+      }
+    }
+
+    const totalAmount = subTotal - discountAmount + shippingFee - shippingDiscountAmount;
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    let orderId: string;
+    try {
+      if (dto.paymentMethod === 'COD') {
+        for (const v of validVouchers) {
+          const lockedVoucher = await queryRunner.manager.createQueryBuilder(Voucher, 'voucher')
+            .setLock('pessimistic_write')
+            .where('voucher.id = :id', { id: v.id })
+            .getOne();
+          if (!lockedVoucher) {
+            throw new BadRequestException(`Mã voucher không tồn tại`);
+          }
+          if (lockedVoucher.used_count >= lockedVoucher.total_limit) {
+            throw new BadRequestException(`Mã voucher ${lockedVoucher.code} đã hết lượt sử dụng`);
+          }
+          lockedVoucher.used_count += 1;
+          await queryRunner.manager.save(lockedVoucher);
+        }
+      }
+
+      let order = queryRunner.manager.create(Order, {
+        userId,
+        addressId: address.id,
+        subTotal,
+        shippingFee,
+        discountAmount,
+        shippingDiscountAmount,
+        totalAmount,
         status: EOrderStatus.PENDING,
-        timestamp: new Date(),
-        note: 'Đơn hàng đã được tạo'
-      }]
-    });
-    order = await this.orderRepository.save(order);
-    const orderId = order.id;
+        paymentStatus: EPaymentStatus.PENDING,
+        paymentMethod: dto.paymentMethod,
+        snapshotAddress: this.mapAddressToDto(address),
+        statusHistory: [{
+          status: EOrderStatus.PENDING,
+          timestamp: new Date(),
+          note: 'Đơn hàng đã được tạo'
+        }]
+      });
+      order = await queryRunner.manager.save(order);
+      orderId = order.id;
 
-    const orderItems = validOrderItems.map((item) =>
-      this.orderItemRepository.create({
-        orderId,
-        productId: item.productId,
-        quantity: item.quantity,
-        price: item.price,
-        productName: item.productName,
-        productImageUrl: item.productImageUrl,
-        originalPrice: item.originalPrice,
-        discountPercentage: item.discountPercentage,
-      }),
-    );
-    await this.orderItemRepository.save(orderItems);
+      const orderItems = validOrderItems.map((item) =>
+        queryRunner.manager.create(OrderItem, {
+          orderId,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+          productName: item.productName,
+          productImageUrl: item.productImageUrl,
+          originalPrice: item.originalPrice,
+          discountPercentage: item.discountPercentage,
+        }),
+      );
+      await queryRunner.manager.save(orderItems);
+
+      if (validVouchers.length > 0) {
+        const orderVouchers = validVouchers.map(v => {
+          return queryRunner.manager.create(OrderVoucher, {
+            orderId,
+            userId,
+            voucherId: v.id,
+            voucherCode: v.code,
+            discountAmount: (v as any)._calculatedDiscount,
+            voucherSnapshot: {
+              code: v.code,
+              title: v.title,
+              voucher_type: v.voucher_type,
+              discount_value: Number(v.discount_value),
+              max_discount_amount: v.max_discount_amount ? Number(v.max_discount_amount) : null,
+              min_order_value: Number(v.min_order_value)
+            }
+          });
+        });
+        await queryRunner.manager.save(orderVouchers);
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
+    }
 
     if (dto.paymentMethod === 'MOMO') {
       const payUrl = await this.momoService.buildMoMoPaymentUrl(orderId, totalAmount);
@@ -258,15 +489,65 @@ export class CheckoutService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (user) {
       this.mailService.sendOrderStatusUpdateEmail(user.email, {
-        orderCode: order.id,
+        orderCode: orderId,
         customerName: address.fullName,
         newStatus: 'Đơn hàng đang chờ được xử lý',
-        updatedAt: order.createdAt.toLocaleString('vi-VN'),
+        updatedAt: new Date().toLocaleString('vi-VN'),
         orderItems: validOrderItems
       });
     }
 
     return { orderId, payUrl: null, paymentRequired: false };
+  }
+
+  private async consumeVouchersForOrder(orderId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const orderVouchers = await queryRunner.manager.find(OrderVoucher, { where: { orderId } });
+      for (const ov of orderVouchers) {
+        const lockedVoucher = await queryRunner.manager.createQueryBuilder(Voucher, 'voucher')
+          .setLock('pessimistic_write')
+          .where('voucher.id = :id', { id: ov.voucherId })
+          .getOne();
+        if (lockedVoucher) {
+            lockedVoucher.used_count += 1;
+            await queryRunner.manager.save(lockedVoucher);
+        }
+      }
+      await queryRunner.commitTransaction();
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      console.error('Lỗi khi consume voucher cho đơn hàng PAID:', e);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async rollbackVouchersForOrder(orderId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const orderVouchers = await queryRunner.manager.find(OrderVoucher, { where: { orderId } });
+      for (const ov of orderVouchers) {
+        const lockedVoucher = await queryRunner.manager.createQueryBuilder(Voucher, 'voucher')
+          .setLock('pessimistic_write')
+          .where('voucher.id = :id', { id: ov.voucherId })
+          .getOne();
+        if (lockedVoucher && lockedVoucher.used_count > 0) {
+            lockedVoucher.used_count -= 1;
+            await queryRunner.manager.save(lockedVoucher);
+        }
+      }
+      await queryRunner.commitTransaction();
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      console.error('Lỗi khi rollback voucher cho đơn hàng:', e);
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private async clearPurchasedItemsFromCart(userId: string, productIds: string[]) {
@@ -333,11 +614,12 @@ export class CheckoutService {
       order.paymentStatus = resultCode === 0 ? EPaymentStatus.PAID : EPaymentStatus.FAILED;
       await this.orderRepository.save(order);
 
-      // If MOMO payment succeeded, clear items from cart
+      // If MOMO payment succeeded, clear items from cart and consume vouchers
       if (resultCode === 0) {
         const orderItems = await this.orderItemRepository.find({ where: { orderId } });
         const productIds = orderItems.map(item => item.productId);
         await this.clearPurchasedItemsFromCart(order.userId, productIds);
+        await this.consumeVouchersForOrder(orderId);
         this.sendOnlinePaymentBillingEmail(orderId);
       }
     }
@@ -366,6 +648,7 @@ export class CheckoutService {
       const orderItems = await this.orderItemRepository.find({ where: { orderId } });
       const productIds = orderItems.map(item => item.productId);
       await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      await this.consumeVouchersForOrder(orderId);
       this.sendOnlinePaymentBillingEmail(orderId);
     } else {
       order.paymentStatus = EPaymentStatus.FAILED;
@@ -390,6 +673,7 @@ export class CheckoutService {
       const orderItems = await this.orderItemRepository.find({ where: { orderId } });
       const productIds = orderItems.map(item => item.productId);
       await this.clearPurchasedItemsFromCart(order.userId, productIds);
+      await this.consumeVouchersForOrder(orderId);
       this.sendOnlinePaymentBillingEmail(orderId);
       return true;
     } else {

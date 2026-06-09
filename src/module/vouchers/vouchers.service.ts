@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Voucher, VoucherStatus } from './entities/voucher.entity';
+import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Voucher, VoucherStatus, DistributionType } from './entities/voucher.entity';
+import { OrderVoucher } from '../checkout/entities/order-voucher.entity';
 import { CreateVoucherRequestDto, GetVouchersQueryDto, UpdateVoucherRequestDto, UpdateVoucherStatusRequestDto } from './dto/vouchers.dto';
 
 @Injectable()
@@ -9,7 +10,113 @@ export class VouchersService {
   constructor(
     @InjectRepository(Voucher)
     private readonly voucherRepository: Repository<Voucher>,
-  ) {}
+    @InjectRepository(OrderVoucher)
+    private readonly orderVoucherRepository: Repository<OrderVoucher>,
+  ) { }
+
+  async countUserVoucherUsage(userId: string, voucherId: number): Promise<number> {
+    if (!userId) return 0;
+    return this.orderVoucherRepository.count({
+      where: { userId, voucherId }
+    });
+  }
+
+  mapToClientDto(voucher: Voucher) {
+    return {
+      id: voucher.id,
+      code: voucher.code,
+      title: voucher.title,
+      distribution_type: voucher.distribution_type,
+      voucher_type: voucher.voucher_type,
+      discount_value: Number(voucher.discount_value),
+      max_discount_amount: voucher.max_discount_amount ? Number(voucher.max_discount_amount) : null,
+      min_order_value: Number(voucher.min_order_value),
+      start_date: voucher.start_date,
+      end_date: voucher.end_date,
+    };
+  }
+
+  async getValidVouchersForClient(userId?: string) {
+    const now = new Date();
+
+    const validVouchers = await this.voucherRepository.find({
+      where: {
+        status: VoucherStatus.ACTIVE,
+        distribution_type: DistributionType.PUBLIC,
+        start_date: LessThanOrEqual(now),
+        end_date: MoreThanOrEqual(now),
+      }
+    });
+
+    const result: any[] = [];
+    for (const voucher of validVouchers) {
+      if (voucher.used_count >= voucher.total_limit) continue;
+
+      if (userId) {
+        const userUsage = await this.countUserVoucherUsage(userId, voucher.id);
+        if (userUsage >= voucher.limit_per_user) continue;
+      }
+
+      result.push(this.mapToClientDto(voucher));
+    }
+    return result;
+  }
+
+  async lookupVoucherForClient(code: string, userId?: string, subTotal?: number) {
+    const voucher = await this.voucherRepository.findOne({ where: { code } });
+    if (!voucher) {
+      throw new NotFoundException('Mã voucher không tồn tại');
+    }
+
+    const now = new Date();
+    if (voucher.status !== VoucherStatus.ACTIVE || voucher.start_date > now || voucher.end_date < now) {
+      throw new BadRequestException('Mã voucher đã hết hạn hoặc không có hiệu lực');
+    }
+
+    if (voucher.used_count >= voucher.total_limit) {
+      throw new BadRequestException('Mã voucher đã hết lượt sử dụng');
+    }
+
+    if (userId) {
+      const userUsage = await this.countUserVoucherUsage(userId, voucher.id);
+      if (userUsage >= voucher.limit_per_user) {
+        throw new BadRequestException('Bạn đã hết lượt sử dụng mã voucher này');
+      }
+    }
+
+    if (subTotal !== undefined && subTotal < Number(voucher.min_order_value)) {
+      throw new BadRequestException(`Mã voucher ${code} yêu cầu đơn hàng tối thiểu ${voucher.min_order_value}đ`);
+    }
+
+    return this.mapToClientDto(voucher);
+  }
+
+  async checkVoucherEligibility(code: string, userId: string, subTotal: number): Promise<Voucher> {
+    const voucher = await this.voucherRepository.findOne({ where: { code } });
+    if (!voucher) {
+      throw new NotFoundException(`Mã voucher ${code} không tồn tại`);
+    }
+
+    const now = new Date();
+    if (voucher.status !== VoucherStatus.ACTIVE || voucher.start_date > now || voucher.end_date < now) {
+      throw new BadRequestException(`Mã voucher ${code} đã hết hạn hoặc không có hiệu lực`);
+    }
+
+    if (voucher.used_count >= voucher.total_limit) {
+      throw new BadRequestException(`Mã voucher ${code} đã hết lượt sử dụng`);
+    }
+
+    const userUsage = await this.countUserVoucherUsage(userId, voucher.id);
+    if (userUsage >= voucher.limit_per_user) {
+      throw new BadRequestException(`Bạn đã dùng hết lượt cho mã voucher ${code}`);
+    }
+
+    if (subTotal < Number(voucher.min_order_value)) {
+      throw new BadRequestException(`Mã voucher ${code} yêu cầu đơn hàng tối thiểu ${voucher.min_order_value}đ`);
+    }
+
+    return voucher;
+  }
 
   async getVouchers(query: GetVouchersQueryDto) {
     const { page = 1, pageSize = 10, status, distribution_type } = query;
@@ -23,9 +130,9 @@ export class VouchersService {
     }
 
     qb.orderBy('voucher.created_at', 'DESC');
-    
+
     if (query.pageSize) {
-       qb.skip((page - 1) * pageSize).take(pageSize);
+      qb.skip((page - 1) * pageSize).take(pageSize);
     }
     return qb.getMany();
   }
@@ -55,7 +162,7 @@ export class VouchersService {
 
   async updateVoucher(id: number, dto: UpdateVoucherRequestDto) {
     const voucher = await this.getVoucherById(id);
-    
+
     if (dto.title !== undefined) voucher.title = dto.title;
     if (dto.discount_value !== undefined) voucher.discount_value = dto.discount_value;
     if (dto.max_discount_amount !== undefined) voucher.max_discount_amount = dto.max_discount_amount;
@@ -77,22 +184,22 @@ export class VouchersService {
 
   async getVoucherStats() {
     const all = await this.voucherRepository.find();
-    
+
     const total_vouchers = all.length;
     const total_used_count = all.reduce((sum, v) => sum + v.used_count, 0);
-    
+
     const total_discount_given = all.reduce((sum, v) => {
       if (v.voucher_type === 'CASH') return sum + (Number(v.used_count) * Number(v.discount_value));
-      return sum; 
+      return sum;
     }, 0);
-    
+
     const active_vouchers_count = all.filter(v => v.status === VoucherStatus.ACTIVE).length;
-    
+
     const typeCount: Record<string, number> = {};
     all.forEach(v => {
       typeCount[v.voucher_type] = (typeCount[v.voucher_type] || 0) + 1;
     });
-    
+
     let most_popular_type: string | null = null;
     let max = 0;
     for (const type in typeCount) {

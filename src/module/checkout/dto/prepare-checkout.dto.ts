@@ -20,4 +20,9 @@ export class PrepareCheckoutDto {
     @IsNumber()
     @IsOptional()
     addressId?: number;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    voucherCodes?: string[];
 }
