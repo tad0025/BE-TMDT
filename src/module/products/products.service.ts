@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus, Logger } from '@nestjs/common';
+import { Injectable, HttpStatus, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -10,10 +10,18 @@ import { Favorite } from './entities/favorite.entity';
 import { Category } from '../categories/entities/category.entity';
 import { GetAllProductDto, CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { MediaService } from '../media/media.service';
+import { OpensearchService } from '../opensearch/opensearch.service';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
   private readonly logger = new Logger(ProductsService.name);
+
+  async onModuleInit() {
+    this.logger.log('Bắt đầu đồng bộ tự động danh sách sản phẩm lên OpenSearch...');
+    this.syncProductsToOpensearch()
+      .then((msg) => this.logger.log(msg))
+      .catch((err) => this.logger.error('Lỗi khi đồng bộ sản phẩm lên OpenSearch:', err.message));
+  }
 
   constructor(
     @InjectRepository(Product)
@@ -23,6 +31,7 @@ export class ProductsService {
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly mediaService: MediaService,
+    private readonly opensearchService: OpensearchService,
   ) { }
 
   async getAllProducts(dto: GetAllProductDto, rawQuery: Record<string, any>): Promise<ApiResponse<any>> {
@@ -59,6 +68,17 @@ export class ProductsService {
 
     const qb = this.productsRepository.createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category');
+
+    if (dto.search) {
+      const matchedIds = await this.opensearchService.searchProductIds(dto.search);
+      if (matchedIds.length === 0) {
+        // Trả về mảng rỗng nếu không có sản phẩm nào khớp với từ khóa trong OpenSearch
+        const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', []);
+        response.pagination = { page, pageSize, totalItems: 0, totalPages: 0 };
+        return response;
+      }
+      qb.andWhere('product.id IN (:...matchedIds)', { matchedIds });
+    }
 
     // Lọc theo danh mục
     if (categories && Array.isArray(categories) && categories.length > 0) {
@@ -247,6 +267,9 @@ export class ProductsService {
       }
     }
 
+    // Index vao OpenSearch
+    await this.opensearchService.indexProduct(saved);
+
     return saved;
   }
 
@@ -279,7 +302,20 @@ export class ProductsService {
       }
     }
 
+    // Cap nhat vao OpenSearch
+    await this.opensearchService.updateProduct(id, saved);
+
     return saved;
+  }
+
+  async syncProductsToOpensearch() {
+    const products = await this.productsRepository.find({ relations: ['category'] });
+    let count = 0;
+    for (const p of products) {
+      await this.opensearchService.indexProduct(p);
+      count++;
+    }
+    return `Đã đồng bộ ${count} sản phẩm lên OpenSearch thành công.`;
   }
 
   async deleteProduct(id: string) {
@@ -289,5 +325,6 @@ export class ProductsService {
     }
 
     await this.productsRepository.remove(product);
+    await this.opensearchService.removeProduct(id);
   }
 }

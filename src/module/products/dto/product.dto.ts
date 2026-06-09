@@ -43,6 +43,10 @@ export class GetAllProductDto {
     filters?: ProductFiltersDto;
 
     @IsOptional()
+    @IsString()
+    search?: string;
+
+    @IsOptional()
     @IsEnum(EFilterState)
     'filters[sortBy]'?: EFilterState;
 
