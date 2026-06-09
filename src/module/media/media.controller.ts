@@ -18,21 +18,8 @@ class ConfirmUploadDto {
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
-  /**
-   * GET /media/sign?folder=xxx
-   *
-   * Tạo signed params để FE upload thẳng lên Cloudinary mà không qua BE server.
-   * FE thực hiện POST multipart/form-data tới `uploadUrl` với các trường:
-   *   - file        : File thực tế người dùng chọn
-   *   - api_key     : lấy từ response
-   *   - signature   : lấy từ response
-   *   - timestamp   : lấy từ response
-   *   - folder      : lấy từ response
-   *   - tags        : 'tmp' (bắt buộc, đã được ký trong signature)
-   *
-   * Sau khi upload thành công, Cloudinary trả về { public_id, secure_url }.
-   * FE lưu public_id để gọi PATCH /media/confirm khi lưu thực thể chính thức.
-   */
+  
+
   @Get('sign')
   @UseGuards(JwtAuthGuard)
   getSignedUploadParams(@Query('folder') folder?: string) {
@@ -44,13 +31,8 @@ export class MediaController {
     };
   }
 
-  /**
-   * PATCH /media/confirm
-   * Body: { "publicIds": ["folder/abc123", "folder/def456"] }
-   *
-   * Gọi khi file được lưu chính thức (gắn vào sản phẩm, avatar, v.v.).
-   * Xóa tag 'tmp' → file không bị scheduler cleanup hàng đêm xóa.
-   */
+  
+
   @Patch('confirm')
   @UseGuards(JwtAuthGuard)
   async confirmUpload(@Body() body: ConfirmUploadDto) {

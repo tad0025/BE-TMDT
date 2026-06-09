@@ -11,7 +11,7 @@ export class Staff {
   user: User;
 
   @Column({ nullable: true })
-  position: string; // example field
+  position: string; 
 
   @CreateDateColumn()
   createdAt: Date;

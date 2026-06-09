@@ -82,7 +82,7 @@ export class UsersService {
         return response;
     }
 
-    // ─── Address CRUD ─────────────────────────────────────────────────────────
+    
 
     private mapToAddressDto(address: Address): AddressDto {
         return {
@@ -104,9 +104,8 @@ export class UsersService {
         };
     }
 
-    /**
-     * Lấy danh sách địa chỉ của user (địa chỉ mặc định lên đầu).
-     */
+    
+
     async getAddresses(userId: string): Promise<ApiResponse<AddressDto[]>> {
         const addresses = await this.addressRepository.find({
             where: { userId },
@@ -115,9 +114,8 @@ export class UsersService {
         return new ApiResponse(true, 'Lấy danh sách địa chỉ thành công', addresses.map(this.mapToAddressDto));
     }
 
-    /**
-     * Lấy chi tiết một địa chỉ theo id.
-     */
+    
+
     async getAddressById(userId: string, addressId: number): Promise<ApiResponse<AddressDto>> {
         const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
         if (!address) {
@@ -126,17 +124,14 @@ export class UsersService {
         return new ApiResponse(true, 'Lấy địa chỉ thành công', this.mapToAddressDto(address));
     }
 
-    /**
-     * Tạo địa chỉ mới cho user.
-     * Nếu isDefault = true → tự động bỏ default của các địa chỉ cũ.
-     * Nếu đây là địa chỉ đầu tiên → tự động đặt làm default.
-     */
+    
+
     async createAddress(userId: string, dto: CreateAddressDto): Promise<ApiResponse<AddressDto>> {
         const existingCount = await this.addressRepository.count({ where: { userId } });
         const shouldBeDefault = dto.isDefault === true || existingCount === 0;
 
         if (shouldBeDefault) {
-            // Bỏ default của tất cả địa chỉ hiện có
+            
             await this.addressRepository.update({ userId, isDefault: true }, { isDefault: false });
         }
 
@@ -152,10 +147,8 @@ export class UsersService {
         return new ApiResponse(true, 'Thêm địa chỉ thành công', this.mapToAddressDto(saved));
     }
 
-    /**
-     * Cập nhật địa chỉ.
-     * Nếu isDefault = true → bỏ default của các địa chỉ khác.
-     */
+    
+
     async updateAddress(userId: string, addressId: number, dto: UpdateAddressDto): Promise<ApiResponse<AddressDto>> {
         const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
         if (!address) {
@@ -171,10 +164,8 @@ export class UsersService {
         return new ApiResponse(true, 'Cập nhật địa chỉ thành công', this.mapToAddressDto(saved));
     }
 
-    /**
-     * Xóa địa chỉ.
-     * Nếu địa chỉ bị xóa là default → tự động đặt địa chỉ còn lại mới nhất làm default.
-     */
+    
+
     async deleteAddress(userId: string, addressId: number): Promise<ApiResponse<null>> {
         const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
         if (!address) {
@@ -184,7 +175,7 @@ export class UsersService {
         const wasDefault = address.isDefault;
         await this.addressRepository.remove(address);
 
-        // Nếu địa chỉ bị xóa là default → promote địa chỉ mới nhất còn lại
+        
         if (wasDefault) {
             const next = await this.addressRepository.findOne({
                 where: { userId },
@@ -199,9 +190,8 @@ export class UsersService {
         return new ApiResponse(true, 'Xóa địa chỉ thành công', null);
     }
 
-    /**
-     * Đặt một địa chỉ làm mặc định.
-     */
+    
+
     async setDefaultAddress(userId: string, addressId: number): Promise<ApiResponse<null>> {
         const address = await this.addressRepository.findOne({ where: { id: addressId, userId } });
         if (!address) {
@@ -212,10 +202,10 @@ export class UsersService {
             return new ApiResponse(true, 'Địa chỉ này đã là mặc định', null);
         }
 
-        // Bỏ default của tất cả địa chỉ hiện có
+        
         await this.addressRepository.update({ userId, isDefault: true }, { isDefault: false });
 
-        // Set default cho địa chỉ được chọn
+        
         address.isDefault = true;
         await this.addressRepository.save(address);
 

@@ -55,7 +55,7 @@ export class CheckoutController {
   async handlePayPalCapture(@Query('token') token: string, @Query('orderId') orderId: string, @Res() res: any) {
     await this.checkoutService.capturePayPalOrder(token, orderId);
     
-    // Redirect back to frontend result page
+    
     const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }

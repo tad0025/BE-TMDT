@@ -24,7 +24,6 @@ export class OrdersService {
     private readonly checkoutService: CheckoutService,
   ) { }
 
-
   async getOrdersByStatus(filterDto: GetOrdersFilterDto): Promise<OrderListItemDto[]> {
     const { status } = filterDto;
     const query = this.orderRepository.createQueryBuilder('order')
@@ -34,11 +33,11 @@ export class OrdersService {
       query.andWhere('order.status = :status', { status });
       query.orderBy('order.createdAt', 'DESC');
     } else {
-      // Mặc định: lọc PENDING, PREPARING, SHIPPING
+      
       query.andWhere('order.status IN (:...statuses)', {
         statuses: [EOrderStatus.PENDING, EOrderStatus.PREPARING, EOrderStatus.SHIPPING]
       });
-      // Order: PENDING -> PREPARING -> SHIPPING, sau đó DESC theo createdAt
+      
       query.orderBy(
         `FIELD(order.status, '${EOrderStatus.PENDING}', '${EOrderStatus.PREPARING}', '${EOrderStatus.SHIPPING}')`,
         'ASC'
@@ -57,7 +56,7 @@ export class OrdersService {
         firstProductImageUrl = order.items[0].productImageUrl || '';
       }
 
-      // Address mapping from snapshotAddress
+      
       const snapshot: any = order.snapshotAddress || {};
 
       return {

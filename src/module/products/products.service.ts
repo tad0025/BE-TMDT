@@ -62,7 +62,7 @@ export class ProductsService implements OnModuleInit {
 
     const skip = (page - 1) * pageSize;
 
-    // Debug log để kiểm tra giá trị nhận vào
+    
     console.log('[getAllProducts] categories =', categories, '| type =', typeof categories, '| isArray =', Array.isArray(categories));
     console.log('[getAllProducts] sortBy =', sortBy, '| minPrice =', minPrice, '| maxPrice =', maxPrice);
 
@@ -72,7 +72,7 @@ export class ProductsService implements OnModuleInit {
     if (dto.search) {
       const matchedIds = await this.opensearchService.searchProductIds(dto.search);
       if (matchedIds.length === 0) {
-        // Trả về mảng rỗng nếu không có sản phẩm nào khớp với từ khóa trong OpenSearch
+        
         const response = new ApiResponse(true, 'Lấy danh sách sản phẩm thành công', []);
         response.pagination = { page, pageSize, totalItems: 0, totalPages: 0 };
         return response;
@@ -80,13 +80,13 @@ export class ProductsService implements OnModuleInit {
       qb.andWhere('product.id IN (:...matchedIds)', { matchedIds });
     }
 
-    // Lọc theo danh mục
+    
     if (categories && Array.isArray(categories) && categories.length > 0) {
       qb.andWhere('category.id IN (:...categories)', { categories });
       console.log('[getAllProducts] Applying category filter with:', categories);
     }
 
-    // Lọc theo giá
+    
     const parsedMin = minPrice ? Number(minPrice) : NaN;
     const parsedMax = maxPrice ? Number(maxPrice) : NaN;
     if (!isNaN(parsedMin) && !isNaN(parsedMax)) {
@@ -97,7 +97,7 @@ export class ProductsService implements OnModuleInit {
       qb.andWhere('product.price <= :maxPrice', { maxPrice: parsedMax });
     }
 
-    // Sắp xếp
+    
     switch (sortBy) {
       case EFilterState.PRICE_LOW_TO_HIGH:
         qb.orderBy('product.price', 'ASC');
@@ -164,7 +164,7 @@ export class ProductsService implements OnModuleInit {
     return response;
   }
 
-  // Cần inject thêm Favorite Repository vào constructor nếu chưa có
+  
   async getProductById(id: string, userId?: string) {
     const product = await this.productsRepository.findOne({
       where: { id },
@@ -256,13 +256,13 @@ export class ProductsService implements OnModuleInit {
 
     const saved = await this.productsRepository.save(product);
 
-    // Tự động xóa tag 'tmp' sau khi tạo sản phẩm thành công
-    // FE không cần gọi PATCH /media/confirm riêng
+    
+    
     if (mediaPublicIds && mediaPublicIds.length > 0) {
       try {
         await this.mediaService.confirmUpload(mediaPublicIds);
       } catch (err) {
-        // Không throw — lỗi confirm không được phép huỷ việc lưu sản phẩm
+        
         this.logger.warn(`[createProduct] Could not confirm media for product ${saved.id}: ${err?.message}`);
       }
     }

@@ -11,7 +11,7 @@ export class Admin {
   user: User;
 
   @Column({ nullable: true })
-  department: string; // example field
+  department: string; 
 
   @CreateDateColumn()
   createdAt: Date;

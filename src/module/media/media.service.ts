@@ -8,10 +8,10 @@ export class MediaService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  // ─── Signed Upload (FE → Cloudinary trực tiếp) ───────────────────────────────
-  // BE ký signature kèm tag 'tmp'. FE dùng params này POST thẳng lên Cloudinary.
-  // FE gửi: file + signature + timestamp + api_key + folder + tags='tmp'
-  // Upload URL: https://api.cloudinary.com/v1_1/{cloudName}/image/upload
+  
+  
+  
+  
 
   generateSignedUploadParams(folder: string = 'tm-dt') {
     const timestamp = Math.round(Date.now() / 1000);
@@ -19,7 +19,7 @@ export class MediaService {
     const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
     const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
 
-    // 'tags' nằm trong paramsToSign để signature bắt buộc FE truyền đúng tag
+    
     const paramsToSign: Record<string, string | number> = {
       folder,
       tags: 'tmp',
@@ -31,19 +31,19 @@ export class MediaService {
     this.logger.log(`Generated signed upload params for folder: ${folder}`);
 
     return {
-      uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
       apiKey,
       cloudName,
       signature,
       timestamp,
       folder,
-      tags: 'tmp', // FE phải truyền đúng giá trị này vào form-data
+      tags: 'tmp', 
     };
   }
 
-  // ─── Confirm Upload ───────────────────────────────────────────────────────────
-  // Gọi khi file được lưu chính thức (gắn vào sản phẩm, avatar, v.v.)
-  // Xóa tag 'tmp' → file không bị scheduler cleanup hàng đêm xóa.
+  
+  
+  
 
   async confirmUpload(publicIds: string[]): Promise<void> {
     if (!publicIds || publicIds.length === 0) {

@@ -50,7 +50,7 @@ export class Address {
     fullAddress: string;
 
     @Column({ default: false })
-    isDefault: boolean;  // Đánh dấu địa chỉ mặc định
+    isDefault: boolean;  
 
     @CreateDateColumn()
     createdAt: Date;
