@@ -146,8 +146,8 @@ export class OpensearchService implements OnModuleInit {
           query: {
             multi_match: {
               query: keyword,
-              fields: ['name^3', 'description'],
-              fuzziness: 'AUTO',
+              fields: ['name'],
+              operator: 'and',
             },
           },
           _source: false, // We only need IDs
