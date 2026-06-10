@@ -4,6 +4,7 @@ import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { Voucher, VoucherStatus, DistributionType } from './entities/voucher.entity';
 import { OrderVoucher } from '../checkout/entities/order-voucher.entity';
 import { CreateVoucherRequestDto, GetVouchersQueryDto, UpdateVoucherRequestDto, UpdateVoucherStatusRequestDto } from './dto/vouchers.dto';
+import { EOrderStatus } from '../checkout/enums/EOrderStatus.enum';
 
 @Injectable()
 export class VouchersService {
@@ -188,10 +189,14 @@ export class VouchersService {
     const total_vouchers = all.length;
     const total_used_count = all.reduce((sum, v) => sum + v.used_count, 0);
 
-    const total_discount_given = all.reduce((sum, v) => {
-      if (v.voucher_type === 'CASH') return sum + (Number(v.used_count) * Number(v.discount_value));
-      return sum;
-    }, 0);
+    const totalDiscountResult = await this.orderVoucherRepository
+      .createQueryBuilder('ov')
+      .innerJoin('ov.order', 'o')
+      .select('SUM(ov.discountAmount)', 'total')
+      .where('o.status = :status', { status: EOrderStatus.SUCCESS })
+      .getRawOne();
+
+    const total_discount_given = Number(totalDiscountResult?.total || 0);
 
     const active_vouchers_count = all.filter(v => v.status === VoucherStatus.ACTIVE).length;
 
@@ -209,13 +214,28 @@ export class VouchersService {
       }
     }
 
+    const topVouchersQuery = await this.orderVoucherRepository
+      .createQueryBuilder('ov')
+      .innerJoin('ov.order', 'o')
+      .select('ov.voucherId', 'voucherId')
+      .addSelect('SUM(ov.discountAmount)', 'discountAmount')
+      .where('o.status = :status', { status: EOrderStatus.SUCCESS })
+      .andWhere('ov.voucherId IS NOT NULL')
+      .groupBy('ov.voucherId')
+      .getRawMany();
+
+    const discountMap = new Map<number, number>();
+    topVouchersQuery.forEach(row => {
+      discountMap.set(row.voucherId, Number(row.discountAmount));
+    });
+
     const sortedByUse = [...all].sort((a, b) => b.used_count - a.used_count);
     const top_vouchers = sortedByUse.slice(0, 5).map(v => ({
       id: v.id,
       title: v.title,
       code: v.code,
       used_count: v.used_count,
-      total_discount_given: v.voucher_type === 'CASH' ? Number(v.used_count) * Number(v.discount_value) : 0,
+      total_discount_given: discountMap.get(v.id) || 0,
       voucher_type: v.voucher_type
     }));
 

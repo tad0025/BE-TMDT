@@ -136,13 +136,7 @@ export class DashboardService {
             trend: conversionTrend.trend,
         };
 
-        const returningUserRate: KpiMetric = {
-            value: 0,
-            changePercent: 0,
-            trend: 'stable',
-        };
-
-        return { totalRevenue, totalOrders, conversionRate, returningUserRate };
+        return { totalRevenue, totalOrders, conversionRate };
     }
 
     async getRevenueChart(period: DashboardPeriod): Promise<RevenueDataPoint[]> {

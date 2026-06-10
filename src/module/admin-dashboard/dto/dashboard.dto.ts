@@ -10,7 +10,6 @@ export interface KpiStats {
     totalRevenue: KpiMetric;
     totalOrders: KpiMetric;
     conversionRate: KpiMetric;
-    returningUserRate: KpiMetric;
 }
 
 export interface RevenueDataPoint {
