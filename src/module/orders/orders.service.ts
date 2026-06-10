@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { EPaymentMethod } from '../checkout/enums/EPaymentMethod.enum';
 import { EPaymentStatus } from '../checkout/enums/EPaymentStatus.enum';
 import { CheckoutService } from '../checkout/checkout.service';
+import { Product } from '../products/entities/product.entity';
 
 @Injectable()
 export class OrdersService {
@@ -22,6 +23,8 @@ export class OrdersService {
     private readonly userRepository: Repository<User>,
     private readonly mailService: MailService,
     private readonly checkoutService: CheckoutService,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) { }
 
   async getOrdersByStatus(filterDto: GetOrdersFilterDto): Promise<OrderListItemDto[]> {
@@ -175,6 +178,7 @@ export class OrdersService {
     const order = await this.orderRepository.findOne({ where: { id }, relations: ['items', 'address'] });
     if (!order) throw new NotFoundException(`Không tìm thấy đơn hàng với ID ${id}`);
 
+    const oldStatus = order.status;
     order.status = updateDto.status;
 
     if (updateDto.note) {
@@ -223,8 +227,19 @@ export class OrdersService {
     }
     const saved = await this.orderRepository.save(order);
 
+    if (updateDto.status === EOrderStatus.SUCCESS && oldStatus !== EOrderStatus.SUCCESS) {
+      for (const item of order.items) {
+        await this.productRepository.increment({ id: item.productId }, 'soldCount', item.quantity);
+      }
+    }
+
     if (updateDto.status === EOrderStatus.CANCELLED || updateDto.status === EOrderStatus.RETURNED) {
       await this.checkoutService.rollbackVouchersForOrder(order.id);
+      if (oldStatus !== EOrderStatus.CANCELLED && oldStatus !== EOrderStatus.RETURNED) {
+        for (const item of order.items) {
+          await this.productRepository.increment({ id: item.productId }, 'stock', item.quantity);
+        }
+      }
     }
 
     let newStatusStr = '';
@@ -429,6 +444,7 @@ export class OrdersService {
       throw new BadRequestException(`Trạng thái không hợp lệ`);
     }
 
+    const oldStatus = order.status;
     order.status = updateDto.newStatus;
 
     if (updateDto.newStatus === EOrderStatus.CANCELLED) {
@@ -456,6 +472,11 @@ export class OrdersService {
 
     if (updateDto.newStatus === EOrderStatus.CANCELLED || updateDto.newStatus === EOrderStatus.RETURNED) {
       await this.checkoutService.rollbackVouchersForOrder(order.id);
+      if (oldStatus !== EOrderStatus.CANCELLED && oldStatus !== EOrderStatus.RETURNED) {
+        for (const item of order.items) {
+          await this.productRepository.increment({ id: item.productId }, 'stock', item.quantity);
+        }
+      }
     }
 
     let newStatusStr = updateDto.newStatus === EOrderStatus.CANCELLED ? 'Đã bị hủy' : 'Yêu cầu trả hàng/hoàn tiền';

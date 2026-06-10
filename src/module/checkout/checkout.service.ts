@@ -439,6 +439,10 @@ export class CheckoutService {
       );
       await queryRunner.manager.save(orderItems);
 
+      for (const item of validOrderItems) {
+        await queryRunner.manager.decrement(Product, { id: item.productId }, 'stock', item.quantity);
+      }
+
       if (validVouchers.length > 0) {
         const orderVouchers = validVouchers.map(v => {
           return queryRunner.manager.create(OrderVoucher, {
