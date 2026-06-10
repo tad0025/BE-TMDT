@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hóa đơn đơn hàng #684BF8C2</title>
+    <style>
+        /* ── Reset & Base ────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            color: #1a1a2e;
+            background: #f0f2f5;
+            padding: 32px 16px;
+        }
+
+        /* ── Invoice Card ────────────────────────────────── */
+        .invoice {
+            max-width: 760px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
+            overflow: hidden;
+        }
+
+        /* ── Header ──────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            color: #ffffff;
+            padding: 32px 40px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .brand-logo {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-logo span {
+            color: #e94560;
+        }
+
+        .brand-tagline {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 3px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .invoice-meta {
+            text-align: right;
+        }
+
+        .invoice-meta .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .invoice-meta .invoice-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        .invoice-meta .date {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* ── Status Bar ──────────────────────────────────── */
+        .status-bar {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item {
+            flex: 1;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-right: none;
+        }
+
+        .status-label {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: block;
+        }
+
+        .status-value {
+            font-size: 13px;
+            font-weight: 600;
+            display: block;
+            margin-top: 4px;
+        }
+
+        /* ── Badges ──────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+        }
+
+        /* .badge-paid     { background: #dcfce7; color: #15803d; }
+        .badge-pending  { background: #fef9c3; color: #a16207; }
+        .badge-failed   { background: #fee2e2; color: #b91c1c; }
+        .badge-success  { background: #dbeafe; color: #1d4ed8; }
+        .badge-shipped  { background: #e0e7ff; color: #4338ca; }
+        .badge-delivered{ background: #dcfce7; color: #15803d; }
+        .badge-cancelled{ background: #fee2e2; color: #b91c1c; }
+        .badge-returned { background: #fce7f3; color: #be185d; }
+        .badge-order-pending { background: #fef9c3; color: #a16207; }
+        .badge-momo     { background: #fce7f3; color: #9d174d; }
+        .badge-cod      { background: #f0fdf4; color: #166534; } */
+
+        /* ── Body ────────────────────────────────────────── */
+        .body {
+            padding: 32px 40px;
+        }
+
+        /* ── Info Grid ───────────────────────────────────── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+
+        .info-box h3 {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .info-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 5px;
+            align-items: flex-start;
+        }
+
+        .info-row .key {
+            color: #64748b;
+            font-size: 12px;
+            min-width: 88px;
+            flex-shrink: 0;
+        }
+
+        .info-row .val {
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        /* ── Section Title ───────────────────────────────── */
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        /* ── Table ───────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+
+        thead tr {
+            background: #1a1a2e;
+            color: #e2e8f0;
+        }
+
+        thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        thead th:last-child {
+            text-align: right;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody td {
+            padding: 12px 14px;
+            vertical-align: middle;
+        }
+
+        tbody td:last-child {
+            text-align: right;
+        }
+
+        .product-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .product-img {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            flex-shrink: 0;
+            background: #f1f5f9;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 12px;
+        }
+
+        .product-id {
+            font-size: 10px;
+            color: #94a3b8;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+
+        .price-original {
+            text-decoration: line-through;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .price-sale {
+            color: #e94560;
+            font-weight: 600;
+        }
+
+        .discount-badge {
+            display: inline-block;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* ── Totals ──────────────────────────────────────── */
+        .totals {
+            margin-left: auto;
+            width: 280px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 9px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 12px;
+        }
+
+        .totals-row:last-child {
+            border-bottom: none;
+        }
+
+        .totals-row .t-label {
+            color: #64748b;
+        }
+
+        .totals-row .t-value {
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .totals-row.total-final {
+            background: #1a1a2e;
+        }
+
+        .totals-row.total-final .t-label {
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .totals-row.total-final .t-value {
+            color: #e94560;
+            font-weight: 800;
+            font-size: 15px;
+        }
+
+        /* ── Footer ──────────────────────────────────────── */
+        .footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 20px 40px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .footer strong {
+            color: #64748b;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .invoice {
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice">
+
+        <!-- ─── Header ─────────────────────────────────── -->
+        <div class="header">
+            <div>
+                <div class="brand-logo">Market<span>Nest</span></div>
+                <div class="brand-tagline">Sàn thương mại thủ công mỹ nghệ</div>
+            </div>
+            <div class="invoice-meta">
+                <div class="label">Hóa đơn</div>
+                <div class="invoice-number">#684BF8C2</div>
+                <div class="date">Ngày đặt: 28/05/2026, 10:30</div>
+            </div>
+        </div>
+
+        <!-- ─── Body ────────────────────────────────────── -->
+        <div class="body">
+
+            <!-- Info: Buyer & Delivery Address -->
+            <div class="info-grid">
+                <div class="info-box">
+                    <h3>Thông tin người nhận</h3>
+                    <div class="info-row">
+                        <span class="key">Họ tên:</span>
+                        <span class="val">Nguyễn Văn An</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="key">Điện thoại:</span>
+                        <span class="val">0912 345 678</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="key">Mã đơn hàng:</span>
+                        <span class="val"
+                            style="font-family:monospace;font-size:11px;">684bf8c2-5878-4826-bd12-071fd55bd280</span>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h3>Địa chỉ giao hàng</h3>
+                    <div class="info-row">
+                        <span class="key">Địa chỉ:</span>
+                        <span class="val">227 Nguyễn Văn Cừ</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="key">Phường/Xã:</span>
+                        <span class="val">Phường 4</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="key">Quận/Huyện:</span>
+                        <span class="val">Quận 5</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="key">Tỉnh/TP:</span>
+                        <span class="val">TP. Hồ Chí Minh</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="section-title">Danh sách sản phẩm</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:42%">Sản phẩm</th>
+                        <th style="width:18%">Đơn giá</th>
+                        <th style="width:10%;text-align:center">SL</th>
+                        <th style="width:14%">Giảm giá</th>
+                        <th style="width:16%">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Item 1 -->
+                    <tr>
+                        <td>
+                            <div class="product-cell">
+                                <img class="product-img" src="https://picsum.photos/seed/craft1/80/80"
+                                    alt="Bình gốm sứ thủ công" />
+                                <div>
+                                    <div class="product-name">Bình gốm sứ thủ công Bát Tràng</div>
+                                    <div class="product-id">ID: a1b2c3d4-0001-4abc-9999-aaabbbcccddd</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-original">350.000 ₫</div>
+                            <div class="price-sale">280.000 ₫</div>
+                        </td>
+                        <td style="text-align:center;font-weight:600;">2</td>
+                        <td><span class="discount-badge">-20%</span></td>
+                        <td style="font-weight:700;color:#1e293b;">560.000 ₫</td>
+                    </tr>
+
+                    <!-- Item 2 -->
+                    <tr>
+                        <td>
+                            <div class="product-cell">
+                                <img class="product-img" src="https://picsum.photos/seed/craft2/80/80"
+                                    alt="Tranh sơn mài" />
+                                <div>
+                                    <div class="product-name">Tranh sơn mài phong cảnh làng quê</div>
+                                    <div class="product-id">ID: b2c3d4e5-0002-4bcd-8888-bbbcccdddeee</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-sale">450.000 ₫</div>
+                        </td>
+                        <td style="text-align:center;font-weight:600;">1</td>
+                        <td><span style="color:#94a3b8;">—</span></td>
+                        <td style="font-weight:700;color:#1e293b;">450.000 ₫</td>
+                    </tr>
+
+                    <!-- Item 3 -->
+                    <tr>
+                        <td>
+                            <div class="product-cell">
+                                <img class="product-img" src="https://picsum.photos/seed/craft3/80/80"
+                                    alt="Giỏ mây đan tay" />
+                                <div>
+                                    <div class="product-name">Giỏ mây đan tay truyền thống</div>
+                                    <div class="product-id">ID: c3d4e5f6-0003-4cde-7777-cccdddeeefffff</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-original">200.000 ₫</div>
+                            <div class="price-sale">170.000 ₫</div>
+                        </td>
+                        <td style="text-align:center;font-weight:600;">3</td>
+                        <td><span class="discount-badge">-15%</span></td>
+                        <td style="font-weight:700;color:#1e293b;">510.000 ₫</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div class="totals">
+                <div class="totals-row">
+                    <span class="t-label">Tạm tính</span>
+                    <span class="t-value">1.520.000 ₫</span>
+                </div>
+                <div class="totals-row">
+                    <span class="t-label">Phí vận chuyển</span>
+                    <span class="t-value">30.000 ₫</span>
+                </div>
+                <div class="totals-row total-final">
+                    <span class="t-label">Tổng cộng</span>
+                    <span class="t-value">1.550.000 ₫</span>
+                </div>
+            </div>
+
+        </div><!-- /.body -->
+
+        <!-- ─── Footer ──────────────────────────────────── -->
+        <div class="footer">
+            <p>Cảm ơn bạn đã mua sắm tại <strong>MarketNest</strong> 🎨</p>
+            <p>Mọi thắc mắc vui lòng liên hệ: <strong>support@MarketNest.vn</strong> | Hotline:
+                <strong>1800-xxxx</strong></p>
+            <p style="margin-top:8px;font-size:10px;">Hóa đơn được tạo tự động lúc 28/05/2026, 10:55 — Không cần chữ ký
+            </p>
+        </div>
+
+    </div>
+</body>
+
+</html>

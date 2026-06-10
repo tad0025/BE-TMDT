@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
@@ -12,9 +13,10 @@ import { MailModule } from '../mails/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]), 
+    TypeOrmModule.forFeature([User]),
     PassportModule,
     MailModule,
+    CacheModule.register(),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -29,4 +31,4 @@ import { MailModule } from '../mails/mail.module';
   controllers: [AuthController],
   exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

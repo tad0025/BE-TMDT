@@ -1,4 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Category } from '../../categories/entities/category.entity';
+import { Seller } from '../../sellers/entities/seller.entity';
 
 @Entity('products')
 export class Product {
@@ -11,14 +13,38 @@ export class Product {
   @Column({ nullable: true })
   imageUrl: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column({ type: 'json', nullable: true })
+  images: string[];
+
+  @Column({ type: 'longtext' })
+  description: string;
+
+  @Column('bigint')
   price: number;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('bigint', { nullable: true })
   originalPrice: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ default: 0 })
   discountPercentage: number;
+
+  @Column({ default: 0 })
+  stock: number;
+
+  @Column({ default: 0 })
+  soldCount: number;
+
+  @Column({ type: 'json', nullable: true })
+  materials: string[];
+
+  @Column({ type: 'json', nullable: true })
+  dimensions: number[];
+
+  @Column('float', { nullable: true })
+  weight: number;
+
+  @Column({ nullable: true })
+  careInstructions: string;
 
   @Column('float', { default: 0 })
   rating: number;
@@ -26,6 +52,9 @@ export class Product {
   @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @ManyToOne(() => Category, (category) => category.products, { onDelete: 'SET NULL' })
+  category: Category;
+
+  @ManyToOne(() => Seller, { onDelete: 'CASCADE' })
+  seller: Seller;
 }

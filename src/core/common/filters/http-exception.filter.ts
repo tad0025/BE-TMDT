@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable prettier/prettier */
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 

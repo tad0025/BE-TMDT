@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cập nhật trạng thái đơn hàng #{{orderCode}}</title>
+    <style>
+        /* ── Reset & Base ────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            color: #1a1a2e;
+            background: #f0f2f5;
+            padding: 32px 16px;
+        }
+
+        /* ── Invoice Card ────────────────────────────────── */
+        .invoice {
+            max-width: 760px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
+            overflow: hidden;
+        }
+
+        /* ── Header ──────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+            color: #ffffff;
+            padding: 32px 40px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .brand-logo {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-logo span {
+            color: #e94560;
+        }
+
+        .brand-tagline {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 3px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .invoice-meta {
+            text-align: right;
+        }
+
+        .invoice-meta .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .invoice-meta .invoice-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        /* ── Body ────────────────────────────────────────── */
+        .body {
+            padding: 32px 40px;
+        }
+
+        /* ── Status Alert Box ────────────────────────────── */
+        .status-alert {
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .status-content h2 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .status-content p {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Các class trạng thái để render động từ Backend */
+        /* 1. Mới đặt hàng */
+        .alert-new {
+            background: #e0f2fe;
+            border-left: 5px solid #0284c7;
+            color: #0c4a6e;
+        }
+
+        /* 2. Đang chuẩn bị (PREPARING) */
+        .alert-preparing {
+            background: #fef9c3;
+            border-left: 5px solid #ca8a04;
+            color: #713f12;
+        }
+
+        /* 3. Đang giao (SHIPPING) - Mặc định đang hiển thị trong HTML này */
+        .alert-shipping {
+            background: #ffedd5;
+            border-left: 5px solid #ea580c;
+            color: #7c2d12;
+        }
+
+        /* 4. Giao thành công (SUCCESS) */
+        .alert-success {
+            background: #dcfce7;
+            border-left: 5px solid #16a34a;
+            color: #14532d;
+        }
+
+        /* ── Section Title ───────────────────────────────── */
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        /* ── Table (Simplified) ──────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+
+        thead tr {
+            background: #1a1a2e;
+            color: #e2e8f0;
+        }
+
+        thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        thead th:last-child {
+            text-align: right;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody td {
+            padding: 12px 14px;
+            vertical-align: middle;
+        }
+
+        tbody td:last-child {
+            text-align: right;
+        }
+
+        .product-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .product-img {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            flex-shrink: 0;
+            background: #f1f5f9;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 13px;
+        }
+
+        .price-sale {
+            color: #e94560;
+            font-weight: 600;
+        }
+
+        /* ── Footer ──────────────────────────────────────── */
+        .footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 20px 40px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .footer strong {
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice">
+
+        <div class="header">
+            <div>
+                <div class="brand-logo">Market<span>Nest</span></div>
+                <div class="brand-tagline">Sàn thương mại thủ công mỹ nghệ</div>
+            </div>
+            <div class="invoice-meta">
+                <div class="label">Mã đơn hàng</div>
+                <div class="invoice-number">#{{orderCode}}</div>
+            </div>
+        </div>
+
+        <div class="body">
+
+            <div class="status-alert alert-shipping">
+                <div class="status-content">
+                    <h2>{{newStatus}}!</h2>
+                    <p>Cập nhật mới nhất về đơn hàng của bạn lúc {{updatedAt}}.</p>
+                    {{#if cancelReason}}
+                    <p><strong>Lý do hủy:</strong> {{cancelReason}}</p>
+                    {{/if}}
+                </div>
+            </div>
+
+            <div class="section-title">Sản phẩm đã mua</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:50%">Sản phẩm</th>
+                        <th style="width:25%;text-align:center">Số lượng</th>
+                        <th style="width:25%">Giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each orderItems}}
+                    <tr>
+                        <td>
+                            <div class="product-cell">
+                                <img class="product-img" src="{{this.productImageUrl}}"
+                                    alt="{{this.productName}}" />
+                                <div class="product-name">{{this.productName}}</div>
+                            </div>
+                        </td>
+                        <td style="text-align:center;font-weight:600;">{{this.quantity}}</td>
+                        <td>
+                            <div class="price-sale">{{this.price}} ₫</div>
+                        </td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+
+        </div>
+        <div class="footer">
+            <p>Cảm ơn bạn đã mua sắm tại <strong>MarketNest</strong> 🎨</p>
+            <p>Mọi thắc mắc vui lòng liên hệ: <strong>support@MarketNest.vn</strong> | Hotline:
+                <strong>1800-xxxx</strong>
+            </p>
+        </div>
+
+    </div>
+</body>
+
+</html>
