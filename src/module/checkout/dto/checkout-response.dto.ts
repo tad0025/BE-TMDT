@@ -30,6 +30,7 @@ export class InvalidItemResponseDto {
     reason: string;
 }
 export class PrepareCheckoutResponseDto {
+    prepareTempId: string;
     address: AddressResponseDto | null;
     items: CheckoutItemResponseDto[];
     subTotal: number;
