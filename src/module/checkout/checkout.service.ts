@@ -99,6 +99,7 @@ export class CheckoutService {
     }
 
     const prepareDto: PrepareCheckoutDto = {
+      prepareTempId: dto.prepareTempId,
       items: dto.items,
       addressId: dto.addressId,
       voucherCodes: dto.voucherCodes,
