@@ -12,6 +12,7 @@ import { EPaymentStatus } from './enums/EPaymentStatus.enum';
 import { Product } from '../products/entities/product.entity';
 import { Address } from '../users/entities/address-users.entity';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
+import { PrepareCartCheckoutDto } from './dto/prepare-cart-checkout.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import {
   PrepareCheckoutResponseDto,
@@ -70,6 +71,36 @@ export class CheckoutService {
       longitude: address.longitude,
       fullAddress: address.fullAddress,
     };
+  }
+
+  async prepareCheckoutAndSaveCart(dto: PrepareCartCheckoutDto, userId: string): Promise<PrepareCheckoutResponseDto> {
+    if (dto.items && dto.items.length > 0) {
+      for (const item of dto.items) {
+        let cartItem = await this.cartItemRepository.findOne({
+          where: { user: { id: userId }, product: { id: item.productId } },
+        });
+
+        if (cartItem) {
+          cartItem.quantity = item.quantity;
+          await this.cartItemRepository.save(cartItem);
+        } else {
+          cartItem = this.cartItemRepository.create({
+            user: { id: userId },
+            product: { id: item.productId },
+            quantity: item.quantity,
+          });
+          await this.cartItemRepository.save(cartItem);
+        }
+      }
+    }
+
+    const prepareDto: PrepareCheckoutDto = {
+      items: dto.items,
+      addressId: dto.addressId,
+      voucherCodes: dto.voucherCodes,
+    };
+
+    return this.prepareCheckout(prepareDto, userId);
   }
 
   async prepareCheckout(dto: PrepareCheckoutDto, userId: string): Promise<PrepareCheckoutResponseDto> {
