@@ -20,6 +20,15 @@ export class CheckoutController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('orders/temp/prepare')
+  async getPreparingOrders(
+    @Req() req: any,
+  ) {
+    const data = await this.checkoutService.getPreparingOrders(req.user.id);
+    return { success: true, message: 'Lấy danh sách đơn hàng đang chuẩn bị thành công', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('orders/prepare-cart')
   async prepareCheckoutAndSaveCart(
     @Body() dto: PrepareCartCheckoutDto,

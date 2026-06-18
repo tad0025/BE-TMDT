@@ -12,6 +12,21 @@ export class CheckoutPrepare {
   @Column({ type: 'json' })
   payload: any;
 
+  @Column({ type: 'int', nullable: true })
+  numberOfItems: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  totalQuantity: number | null;
+
+  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
+  estimatedTotalPrice: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  firstProductThumbnail: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  productNamesSummary: string | null;
+
   @Column({ type: 'enum', enum: ECheckoutPrepareStatus, default: ECheckoutPrepareStatus.PREPARING })
   status: ECheckoutPrepareStatus;
 

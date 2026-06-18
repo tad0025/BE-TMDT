@@ -328,6 +328,23 @@ export class CheckoutService {
        }
     }
 
+    const totalQuantity = validItems.reduce((sum, item) => sum + item.quantity, 0);
+    const numberOfItems = validItems.length;
+    const firstProductThumbnail = validItems.length > 0 ? validItems[0].product.imageUrl : null;
+    const productNamesSummary = validItems.length > 0 
+      ? (validItems.length === 1 ? validItems[0].product.name : `${validItems[0].product.name} và ${validItems.length - 1} sản phẩm khác`)
+      : null;
+
+    if (prepareTempId) {
+       await this.checkoutPrepareRepository.update({ id: prepareTempId }, {
+         numberOfItems,
+         totalQuantity,
+         estimatedTotalPrice: subTotal,
+         firstProductThumbnail,
+         productNamesSummary
+       });
+    }
+
     return {
       prepareTempId,
       address: address ? this.mapAddressToDto(address) : null,
@@ -340,6 +357,32 @@ export class CheckoutService {
       totalAmount: subTotal - discountAmount + shippingFee - shippingDiscountAmount,
       invalidItems,
     };
+  }
+
+  async getPreparingOrders(userId: string) {
+    const orders = await this.checkoutPrepareRepository.find({
+      where: {
+        userId,
+        status: ECheckoutPrepareStatus.PREPARING
+      },
+      order: {
+        updatedAt: 'DESC'
+      }
+    });
+
+    const now = new Date();
+    return orders.filter(order => new Date(order.expiredAt) > now).map(order => ({
+      prepareTempId: order.id,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      expiredAt: order.expiredAt,
+      numberOfItems: order.numberOfItems,
+      totalQuantity: order.totalQuantity,
+      estimatedTotalPrice: order.estimatedTotalPrice,
+      firstProductThumbnail: order.firstProductThumbnail,
+      productNamesSummary: order.productNamesSummary,
+      status: order.status
+    }));
   }
 
   async checkoutOrder(dto: CreateOrderDto, userId: string, ipAddr: string = '127.0.0.1'): Promise<{ orderId: string; payUrl: string | null, paymentRequired: boolean }> {
