@@ -30,6 +30,8 @@ import { User } from '../users/entities/user.entity';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { VoucherType, Voucher } from '../vouchers/entities/voucher.entity';
 import { OrderVoucher } from './entities/order-voucher.entity';
+import { CheckoutPrepare } from './entities/checkout-prepare.entity';
+import { ECheckoutPrepareStatus } from './enums/ECheckoutPrepareStatus.enum';
 
 @Injectable()
 export class CheckoutService {
@@ -52,6 +54,8 @@ export class CheckoutService {
     private paypalService: PaypalService,
     private mailService: MailService,
     private vouchersService: VouchersService,
+    @InjectRepository(CheckoutPrepare)
+    private checkoutPrepareRepository: Repository<CheckoutPrepare>,
     private dataSource: DataSource,
   ) { }
 
@@ -104,6 +108,60 @@ export class CheckoutService {
   }
 
   async prepareCheckout(dto: PrepareCheckoutDto, userId: string): Promise<PrepareCheckoutResponseDto> {
+    let prepareTempId = dto.prepareTempId;
+
+    if (prepareTempId) {
+      const existingPrepare = await this.checkoutPrepareRepository.findOne({ where: { id: prepareTempId } });
+      if (!existingPrepare) {
+        throw new NotFoundException('Dữ liệu prepare không tồn tại');
+      }
+      if (existingPrepare.userId !== userId && existingPrepare.userId !== null) {
+        throw new BadRequestException('Không có quyền truy cập');
+      }
+      if (existingPrepare.status !== ECheckoutPrepareStatus.PREPARING) {
+        throw new BadRequestException('Dữ liệu prepare đã được sử dụng hoặc hết hạn');
+      }
+      if (new Date(existingPrepare.expiredAt) < new Date()) {
+        existingPrepare.status = ECheckoutPrepareStatus.EXPIRED;
+        await this.checkoutPrepareRepository.save(existingPrepare);
+        throw new BadRequestException('Dữ liệu prepare đã hết hạn');
+      }
+
+      const payload = existingPrepare.payload;
+      if (dto.items && dto.items.length > 0) payload.items = dto.items;
+      if (dto.addressId !== undefined) payload.addressId = dto.addressId;
+      if (dto.voucherCodes !== undefined) payload.voucherCodes = dto.voucherCodes;
+      
+      dto.items = payload.items;
+      dto.addressId = payload.addressId;
+      dto.voucherCodes = payload.voucherCodes;
+      
+      existingPrepare.payload = payload;
+      await this.checkoutPrepareRepository.save(existingPrepare);
+    } else {
+      if (!dto.items || dto.items.length === 0) {
+        throw new BadRequestException('Giỏ hàng trống');
+      }
+      const expiredAt = new Date();
+      expiredAt.setDate(expiredAt.getDate() + 1);
+
+      const payload = {
+        items: dto.items,
+        addressId: dto.addressId,
+        voucherCodes: dto.voucherCodes
+      };
+
+      const prepareRecord = this.checkoutPrepareRepository.create({
+        userId,
+        payload,
+        expiredAt,
+        status: ECheckoutPrepareStatus.PREPARING
+      });
+      await this.checkoutPrepareRepository.save(prepareRecord);
+      
+      prepareTempId = prepareRecord.id;
+    }
+
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Giỏ hàng trống');
     }
@@ -270,6 +328,7 @@ export class CheckoutService {
     }
 
     return {
+      prepareTempId,
       address: address ? this.mapAddressToDto(address) : null,
       items: validItems,
       subTotal,

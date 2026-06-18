@@ -3,9 +3,14 @@ import { IsOptional, IsString, IsArray, ValidateNested, IsNumber } from 'class-v
 import { PrepareCheckoutItemDto } from './prepare-checkout.dto';
 
 export class PrepareCartCheckoutDto {
+  @IsString()
+  @IsOptional()
+  prepareTempId?: string;
+
   @ValidateNested({ each: true })
   @Type(() => PrepareCheckoutItemDto)
-  items: PrepareCheckoutItemDto[];
+  @IsOptional()
+  items?: PrepareCheckoutItemDto[];
 
   @IsOptional()
   @IsNumber()

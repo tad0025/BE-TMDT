@@ -12,10 +12,15 @@ export class PrepareCheckoutItemDto {
 }
 
 export class PrepareCheckoutDto {
+    @IsString()
+    @IsOptional()
+    prepareTempId?: string;
+
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => PrepareCheckoutItemDto)
-    items: PrepareCheckoutItemDto[];
+    @IsOptional()
+    items?: PrepareCheckoutItemDto[];
 
     @IsNumber()
     @IsOptional()
