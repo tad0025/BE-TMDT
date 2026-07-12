@@ -70,7 +70,22 @@ Bạn vào thư mục `BE-TMDT` mở file `.env.lan` và thư mục `E-CommerceP
   ```
   *(Frontend tự động đọc `.env.preview`, build ra thư mục `dist` và sau đó Vite host bản build ở `http://localhost:4173`)*
 
-**Kết quả**: Bạn truy cập vào `http://localhost:4173` để trải nghiệm bản build thực tế.
+**Kết quả**: Bạn truy cập vào `http://localhost:4173` trên máy tính để trải nghiệm bản build thực tế.
+
+### Preview trên điện thoại (Mạng LAN) để test PWA
+
+Nếu bạn muốn test bản Preview trực tiếp trên điện thoại (rất hữu ích khi test PWA Install):
+
+1. **Xác định IP LAN của máy**. Ví dụ: `192.168.1.32`
+2. **Cập nhật File**: Mở file `.env.preview` của Frontend và Backend, thay `192.168.1.32` thành IP thực tế của bạn.
+3. **Build Frontend**: Chạy `npm run build:preview`
+4. **Chạy Frontend**: Chạy `npm run preview`
+5. **Chạy Backend**: `npm run start:preview`
+6. **Mở trên điện thoại**: Truy cập `http://192.168.1.32:4173`
+7. **Xác nhận**:
+   - API gọi đúng Backend LAN (Không bị lỗi Network Error hay CORS).
+   - Payment Redirect trả về điện thoại đúng IP.
+   - Trình duyệt hiện nút "Cài đặt ứng dụng" (PWA).
 
 ---
 
