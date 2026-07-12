@@ -12,6 +12,7 @@ import { EPaymentStatus } from './enums/EPaymentStatus.enum';
 import { Product } from '../products/entities/product.entity';
 import { Address } from '../users/entities/address-users.entity';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
+import { PrepareCartCheckoutDto } from './dto/prepare-cart-checkout.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import {
   PrepareCheckoutResponseDto,
@@ -29,6 +30,8 @@ import { User } from '../users/entities/user.entity';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { VoucherType, Voucher } from '../vouchers/entities/voucher.entity';
 import { OrderVoucher } from './entities/order-voucher.entity';
+import { CheckoutPrepare } from './entities/checkout-prepare.entity';
+import { ECheckoutPrepareStatus } from './enums/ECheckoutPrepareStatus.enum';
 
 @Injectable()
 export class CheckoutService {
@@ -51,6 +54,8 @@ export class CheckoutService {
     private paypalService: PaypalService,
     private mailService: MailService,
     private vouchersService: VouchersService,
+    @InjectRepository(CheckoutPrepare)
+    private checkoutPrepareRepository: Repository<CheckoutPrepare>,
     private dataSource: DataSource,
   ) { }
 
@@ -72,7 +77,92 @@ export class CheckoutService {
     };
   }
 
+  async prepareCheckoutAndSaveCart(dto: PrepareCartCheckoutDto, userId: string): Promise<PrepareCheckoutResponseDto> {
+    if (dto.items && dto.items.length > 0) {
+      for (const item of dto.items) {
+        let cartItem = await this.cartItemRepository.findOne({
+          where: { user: { id: userId }, product: { id: item.productId } },
+        });
+
+        if (cartItem) {
+          cartItem.quantity = item.quantity;
+          await this.cartItemRepository.save(cartItem);
+        } else {
+          cartItem = this.cartItemRepository.create({
+            user: { id: userId },
+            product: { id: item.productId },
+            quantity: item.quantity,
+          });
+          await this.cartItemRepository.save(cartItem);
+        }
+      }
+    }
+
+    const prepareDto: PrepareCheckoutDto = {
+      prepareTempId: dto.prepareTempId,
+      items: dto.items,
+      addressId: dto.addressId,
+      voucherCodes: dto.voucherCodes,
+    };
+
+    return this.prepareCheckout(prepareDto, userId);
+  }
+
   async prepareCheckout(dto: PrepareCheckoutDto, userId: string): Promise<PrepareCheckoutResponseDto> {
+    let prepareTempId = dto.prepareTempId;
+
+    if (prepareTempId) {
+      const existingPrepare = await this.checkoutPrepareRepository.findOne({ where: { id: prepareTempId } });
+      if (!existingPrepare) {
+        throw new NotFoundException('Dữ liệu prepare không tồn tại');
+      }
+      if (existingPrepare.userId !== userId && existingPrepare.userId !== null) {
+        throw new BadRequestException('Không có quyền truy cập');
+      }
+      if (existingPrepare.status !== ECheckoutPrepareStatus.PREPARING) {
+        throw new BadRequestException('Dữ liệu prepare đã được sử dụng hoặc hết hạn');
+      }
+      if (new Date(existingPrepare.expiredAt) < new Date()) {
+        existingPrepare.status = ECheckoutPrepareStatus.EXPIRED;
+        await this.checkoutPrepareRepository.save(existingPrepare);
+        throw new BadRequestException('Dữ liệu prepare đã hết hạn');
+      }
+
+      const payload = existingPrepare.payload;
+      if (dto.items && dto.items.length > 0) payload.items = dto.items;
+      if (dto.addressId !== undefined) payload.addressId = dto.addressId;
+      if (dto.voucherCodes !== undefined) payload.voucherCodes = dto.voucherCodes;
+      
+      dto.items = payload.items;
+      dto.addressId = payload.addressId;
+      dto.voucherCodes = payload.voucherCodes;
+      
+      existingPrepare.payload = payload;
+      await this.checkoutPrepareRepository.save(existingPrepare);
+    } else {
+      if (!dto.items || dto.items.length === 0) {
+        throw new BadRequestException('Giỏ hàng trống');
+      }
+      const expiredAt = new Date();
+      expiredAt.setDate(expiredAt.getDate() + 1);
+
+      const payload = {
+        items: dto.items,
+        addressId: dto.addressId,
+        voucherCodes: dto.voucherCodes
+      };
+
+      const prepareRecord = this.checkoutPrepareRepository.create({
+        userId,
+        payload,
+        expiredAt,
+        status: ECheckoutPrepareStatus.PREPARING
+      });
+      await this.checkoutPrepareRepository.save(prepareRecord);
+      
+      prepareTempId = prepareRecord.id;
+    }
+
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Giỏ hàng trống');
     }
@@ -238,7 +328,25 @@ export class CheckoutService {
        }
     }
 
+    const totalQuantity = validItems.reduce((sum, item) => sum + item.quantity, 0);
+    const numberOfItems = validItems.length;
+    const firstProductThumbnail = validItems.length > 0 ? validItems[0].product.imageUrl : null;
+    const productNamesSummary = validItems.length > 0 
+      ? (validItems.length === 1 ? validItems[0].product.name : `${validItems[0].product.name} và ${validItems.length - 1} sản phẩm khác`)
+      : null;
+
+    if (prepareTempId) {
+       await this.checkoutPrepareRepository.update({ id: prepareTempId }, {
+         numberOfItems,
+         totalQuantity,
+         estimatedTotalPrice: subTotal,
+         firstProductThumbnail,
+         productNamesSummary
+       });
+    }
+
     return {
+      prepareTempId,
       address: address ? this.mapAddressToDto(address) : null,
       items: validItems,
       subTotal,
@@ -249,6 +357,32 @@ export class CheckoutService {
       totalAmount: subTotal - discountAmount + shippingFee - shippingDiscountAmount,
       invalidItems,
     };
+  }
+
+  async getPreparingOrders(userId: string) {
+    const orders = await this.checkoutPrepareRepository.find({
+      where: {
+        userId,
+        status: ECheckoutPrepareStatus.PREPARING
+      },
+      order: {
+        updatedAt: 'DESC'
+      }
+    });
+
+    const now = new Date();
+    return orders.filter(order => new Date(order.expiredAt) > now).map(order => ({
+      prepareTempId: order.id,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      expiredAt: order.expiredAt,
+      numberOfItems: order.numberOfItems,
+      totalQuantity: order.totalQuantity,
+      estimatedTotalPrice: order.estimatedTotalPrice,
+      firstProductThumbnail: order.firstProductThumbnail,
+      productNamesSummary: order.productNamesSummary,
+      status: order.status
+    }));
   }
 
   async checkoutOrder(dto: CreateOrderDto, userId: string, ipAddr: string = '127.0.0.1'): Promise<{ orderId: string; payUrl: string | null, paymentRequired: boolean }> {

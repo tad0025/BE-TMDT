@@ -45,8 +45,9 @@ export class PaypalService {
 
   async buildPayPalPaymentUrl(orderId: string, totalAmountVND: number): Promise<string> {
     const accessToken = await this.getAccessToken();
-    const returnUrl = this.getRequiredEnv(ENV_VARS.PAYPAL_RETURN_URL);
-    const cancelUrl = this.getRequiredEnv(ENV_VARS.PAYPAL_CANCEL_URL);
+    const callbackUrl = this.getRequiredEnv(ENV_VARS.PAYMENT_CALLBACK_BASE_URL);
+    const returnUrl = `${callbackUrl}/checkout/paypal/capture?orderId=${orderId}`;
+    const cancelUrl = `${callbackUrl}/checkout/paypal/cancel?orderId=${orderId}`;
 
     // Convert VND to USD (approximate rate 1 USD = 25000 VND for demo purposes)
     const amountUSD = (totalAmountVND / 25000).toFixed(2);

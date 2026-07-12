@@ -2,6 +2,7 @@ import { Controller, Post, Body, Req, Res, UseGuards, HttpCode, HttpStatus, Get,
 import { CheckoutService } from './checkout.service';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
+import { PrepareCartCheckoutDto } from './dto/prepare-cart-checkout.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Controller()
@@ -16,6 +17,25 @@ export class CheckoutController {
   ) {
     const data = await this.checkoutService.prepareCheckout(dto, req.user.id);
     return { success: true, message: 'Tính toán đơn hàng thành công', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('orders/temp/prepare')
+  async getPreparingOrders(
+    @Req() req: any,
+  ) {
+    const data = await this.checkoutService.getPreparingOrders(req.user.id);
+    return { success: true, message: 'Lấy danh sách đơn hàng đang chuẩn bị thành công', data };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('orders/prepare-cart')
+  async prepareCheckoutAndSaveCart(
+    @Body() dto: PrepareCartCheckoutDto,
+    @Req() req: any,
+  ) {
+    const data = await this.checkoutService.prepareCheckoutAndSaveCart(dto, req.user.id);
+    return { success: true, message: 'Tính toán và lưu giỏ hàng thành công', data };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -56,7 +76,7 @@ export class CheckoutController {
     await this.checkoutService.capturePayPalOrder(token, orderId);
     
     
-    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    const frontendUrl = process.env.APP_PUBLIC_URL || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }
 
@@ -64,7 +84,7 @@ export class CheckoutController {
   async handlePayPalCancel(@Query('orderId') orderId: string, @Res() res: any) {
     await this.checkoutService.cancelPayPalOrder(orderId);
 
-    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    const frontendUrl = process.env.APP_PUBLIC_URL || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }
 

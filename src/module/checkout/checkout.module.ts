@@ -16,9 +16,10 @@ import { User } from '../users/entities/user.entity';
 import { OrderVoucher } from './entities/order-voucher.entity';
 import { Voucher } from '../vouchers/entities/voucher.entity';
 import { VouchersModule } from '../vouchers/vouchers.module';
+import { CheckoutPrepare } from './entities/checkout-prepare.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address, CartItem, User, OrderVoucher, Voucher]), MailModule, VouchersModule],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, Address, CartItem, User, OrderVoucher, Voucher, CheckoutPrepare]), MailModule, VouchersModule],
   controllers: [CheckoutController],
   providers: [CheckoutService, ShippingService, MomoService, VnpayService, PaypalService],
   exports: [CheckoutService, ShippingService, MomoService, VnpayService, PaypalService]

@@ -19,8 +19,10 @@ export class MomoService {
     const accessKey = this.getRequiredEnv(ENV_VARS.MOMO_ACCESS_KEY);
     const secretKey = this.getRequiredEnv(ENV_VARS.MOMO_SECRET_KEY);
     const endpoint = this.getRequiredEnv(ENV_VARS.MOMO_ENDPOINT);
-    const redirectUrl = this.getRequiredEnv(ENV_VARS.MOMO_REDIRECT_URL);
-    const ipnUrl = this.getRequiredEnv(ENV_VARS.MOMO_IPN_URL);
+    const appUrl = this.getRequiredEnv(ENV_VARS.APP_PUBLIC_URL);
+    const callbackUrl = this.getRequiredEnv(ENV_VARS.PAYMENT_CALLBACK_BASE_URL);
+    const redirectUrl = `${appUrl}/order/checkout/result`;
+    const ipnUrl = `${callbackUrl}/checkout/momo/ipn`;
 
     const amount = Math.round(totalAmount).toString();
     const orderInfo = 'Thanh toan don hang ' + orderId;

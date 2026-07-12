@@ -32,7 +32,10 @@ export class VnpayService {
     const tmnCode = this.getRequiredEnv(ENV_VARS.VNP_TMN_CODE);
     const secretKey = this.getRequiredEnv(ENV_VARS.VNP_HASH_SECRET);
     const vnpUrl = this.getRequiredEnv(ENV_VARS.VNP_URL);
-    const returnUrl = this.getRequiredEnv(ENV_VARS.VNP_RETURN_URL);
+    const appUrl = this.getRequiredEnv(ENV_VARS.APP_PUBLIC_URL);
+    const callbackUrl = this.getRequiredEnv(ENV_VARS.PAYMENT_CALLBACK_BASE_URL);
+    const returnUrl = `${appUrl}/order/checkout/result`;
+    const ipnUrl = `${callbackUrl}/checkout/vnpay/ipn`;
 
     const date = new Date();
     
