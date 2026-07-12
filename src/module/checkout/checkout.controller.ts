@@ -76,7 +76,7 @@ export class CheckoutController {
     await this.checkoutService.capturePayPalOrder(token, orderId);
     
     
-    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    const frontendUrl = process.env.APP_PUBLIC_URL || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }
 
@@ -84,7 +84,7 @@ export class CheckoutController {
   async handlePayPalCancel(@Query('orderId') orderId: string, @Res() res: any) {
     await this.checkoutService.cancelPayPalOrder(orderId);
 
-    const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',')[0].trim() : 'http://localhost:5173';
+    const frontendUrl = process.env.APP_PUBLIC_URL || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/order/checkout/result?orderId=${orderId}`);
   }
 

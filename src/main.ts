@@ -14,8 +14,8 @@ async function bootstrap() {
 
   app.set('trust proxy', 'loopback');
 
-  const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(url => url.trim())
     : ['http://localhost:5173'];
   app.enableCors({
     origin: allowedOrigins,

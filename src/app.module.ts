@@ -33,7 +33,7 @@ import { OpensearchModule } from './module/opensearch/opensearch.module';
 
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.APP_ENV ? `.env.${process.env.APP_ENV}` : '.env',
     }),
 
     TypeOrmModule.forRootAsync({
