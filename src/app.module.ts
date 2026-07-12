@@ -47,6 +47,7 @@ import { OpensearchModule } from './module/opensearch/opensearch.module';
         database: config.get<string>('DB_NAME'),
         autoLoadEntities: true,
         synchronize: true,
+        ssl: { rejectUnauthorized: false }
       }),
     }),
 
