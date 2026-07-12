@@ -37,10 +37,11 @@ export class AuthController {
 
     if (result.success && result.data?.accessToken) {
       const expiresStr = this.configService.get<StringValue>(ENV_VARS.JWT_ACCESS_EXPIRES_IN) || '7d';
+      const isProduction = process.env.NODE_ENV === 'production';
       res.cookie('accessToken', result.data.accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: ms(expiresStr),
       });
     }
@@ -64,10 +65,11 @@ export class AuthController {
 
     if (result.success && result.data?.accessToken) {
       const expiresStr = this.configService.get<StringValue>(ENV_VARS.JWT_ACCESS_EXPIRES_IN) || '7d';
+      const isProduction = process.env.NODE_ENV === 'production';
       res.cookie('accessToken', result.data.accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: ms(expiresStr),
       });
     }
@@ -90,10 +92,11 @@ export class AuthController {
   ) {
     const result = await this.authService.logout(req.user.id);
 
+    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie('accessToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
     });
 
     return result;

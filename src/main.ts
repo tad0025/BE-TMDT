@@ -14,11 +14,12 @@ async function bootstrap() {
 
   app.set('trust proxy', 'loopback');
 
-  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(url => url.trim())
-    : ['http://localhost:5173'];
+  const isProduction = process.env.NODE_ENV === 'production';
+
   app.enableCors({
-    origin: allowedOrigins,
+    origin: isProduction 
+      ? 'https://marketnestplatform.vercel.app'
+      : 'http://localhost:5173',
     credentials: true,
   });
 
