@@ -20,6 +20,7 @@ import { MediaModule } from './module/media/media.module';
 import { OrdersModule } from './module/orders/orders.module';
 import { VouchersModule } from './module/vouchers/vouchers.module';
 import { OpensearchModule } from './module/opensearch/opensearch.module';
+import { RedisModule } from './module/redis/redis.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { OpensearchModule } from './module/opensearch/opensearch.module';
     OrdersModule,
     VouchersModule,
     OpensearchModule,
+    RedisModule,
   ],
   controllers: [],
   providers: [
