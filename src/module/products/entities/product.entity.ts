@@ -28,7 +28,7 @@ export class Product {
   @Column({ default: 0 })
   discountPercentage: number;
 
-  @Column({ default: 0 })
+  @Column({ default: 0, type: 'int', unsigned: true })
   stock: number;
 
   @Column({ default: 0 })

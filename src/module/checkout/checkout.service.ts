@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, DataSource } from 'typeorm';
+import { In, Repository, DataSource, MoreThanOrEqual } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { EOrderStatus } from './enums/EOrderStatus.enum';
@@ -32,6 +32,7 @@ import { VoucherType, Voucher } from '../vouchers/entities/voucher.entity';
 import { OrderVoucher } from './entities/order-voucher.entity';
 import { CheckoutPrepare } from './entities/checkout-prepare.entity';
 import { ECheckoutPrepareStatus } from './enums/ECheckoutPrepareStatus.enum';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class CheckoutService {
@@ -57,6 +58,7 @@ export class CheckoutService {
     @InjectRepository(CheckoutPrepare)
     private checkoutPrepareRepository: Repository<CheckoutPrepare>,
     private dataSource: DataSource,
+    private redisService: RedisService,
   ) { }
 
   private mapAddressToDto(address: Address): AddressResponseDto {
@@ -515,6 +517,27 @@ export class CheckoutService {
 
     const totalAmount = subTotal - discountAmount + shippingFee - shippingDiscountAmount;
 
+    const redisDeductedItems: { productId: string; quantity: number }[] = [];
+    for (const item of validOrderItems) {
+      const res = await this.redisService.deductStock(item.productId, item.quantity);
+      if (res === -1) {
+        const product = productMap.get(item.productId);
+        await this.redisService.setStockNx(item.productId, product!.stock);
+        const res2 = await this.redisService.deductStock(item.productId, item.quantity);
+        if (res2 === 0) {
+          await this.redisService.restoreStock(redisDeductedItems);
+          throw new BadRequestException(`Rất tiếc, sản phẩm "${item.productName}" đã hết hàng (Redis)`);
+        } else {
+          redisDeductedItems.push({ productId: item.productId, quantity: item.quantity });
+        }
+      } else if (res === 0) {
+        await this.redisService.restoreStock(redisDeductedItems);
+        throw new BadRequestException(`Rất tiếc, sản phẩm "${item.productName}" đã hết hàng (Redis)`);
+      } else {
+        redisDeductedItems.push({ productId: item.productId, quantity: item.quantity });
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -573,8 +596,22 @@ export class CheckoutService {
       );
       await queryRunner.manager.save(orderItems);
 
+      validOrderItems.sort((a, b) => a.productId.localeCompare(b.productId));
+
       for (const item of validOrderItems) {
-        await queryRunner.manager.decrement(Product, { id: item.productId }, 'stock', item.quantity);
+        const result = await queryRunner.manager.update(Product,
+          {
+            id: item.productId,
+            stock: MoreThanOrEqual(item.quantity)
+          },
+          {
+            stock: () => `stock - ${item.quantity}`
+          }
+        );
+        
+        if (result.affected === 0) {
+          throw new BadRequestException(`Rất tiếc, sản phẩm "${item.productName}" không đủ số lượng hoặc vừa có người khác mua mất!`);
+        }
       }
 
       if (validVouchers.length > 0) {
@@ -601,6 +638,7 @@ export class CheckoutService {
       await queryRunner.commitTransaction();
     } catch (e) {
       await queryRunner.rollbackTransaction();
+      await this.redisService.restoreStock(redisDeductedItems);
       throw e;
     } finally {
       await queryRunner.release();
