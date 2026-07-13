@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, DataSource } from 'typeorm';
+import { In, Repository, DataSource, MoreThanOrEqual } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { EOrderStatus } from './enums/EOrderStatus.enum';
@@ -573,8 +573,22 @@ export class CheckoutService {
       );
       await queryRunner.manager.save(orderItems);
 
+      validOrderItems.sort((a, b) => a.productId.localeCompare(b.productId));
+
       for (const item of validOrderItems) {
-        await queryRunner.manager.decrement(Product, { id: item.productId }, 'stock', item.quantity);
+        const result = await queryRunner.manager.update(Product,
+          {
+            id: item.productId,
+            stock: MoreThanOrEqual(item.quantity)
+          },
+          {
+            stock: () => `stock - ${item.quantity}`
+          }
+        );
+        
+        if (result.affected === 0) {
+          throw new BadRequestException(`Rất tiếc, sản phẩm "${item.productName}" không đủ số lượng hoặc vừa có người khác mua mất!`);
+        }
       }
 
       if (validVouchers.length > 0) {

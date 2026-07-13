@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Req, Res, UseGuards, HttpCode, HttpStatus, Get, Param, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CheckoutService } from './checkout.service';
 import { JwtAuthGuard } from '../../core/security/jwt/jwt-auth.guard';
 import { PrepareCheckoutDto } from './dto/prepare-checkout.dto';
@@ -40,6 +41,7 @@ export class CheckoutController {
 
   @UseGuards(JwtAuthGuard)
   @Post('orders/checkout')
+  @Throttle({ default: { limit: 1, ttl: 1000 } })
   async checkoutOrder(
     @Body() dto: CreateOrderDto,
     @Req() req: any,
